@@ -53,11 +53,9 @@ def pages(paginator: Paginator):
 
 async def products(session, level, category, page):
     products = await orm_get_products(session, category_id=category)
-    # print(page)
 
     paginator = Paginator(products, page=page)
     product = paginator.get_page()[0]
-    # print(paginator)
 
     image = InputMediaPhoto(
         media=product.image,
@@ -80,8 +78,6 @@ async def products(session, level, category, page):
 
 
 async def carts(session, level, menu_name, page, user_id, product_id):
-
-
     if menu_name == "delete":
         await orm_delete_from_cart(session, user_id, product_id)
         if page > 1:
@@ -94,7 +90,6 @@ async def carts(session, level, menu_name, page, user_id, product_id):
         await orm_add_to_cart(session, user_id, product_id)
 
     carts = await orm_get_user_carts(session, user_id)
-
 
     if not carts:
         banner = await orm_get_banner(session, "cart")
@@ -135,13 +130,9 @@ async def carts(session, level, menu_name, page, user_id, product_id):
 
     return image, kbds
 
-async def order(session, user_id, data):
-    # query = select(Cart).filter(Cart.user_id==user_id, Cart.product_id==data["product_id"])
-    # cart = await session.execute(query)
-    # print(cart.scalar().quantity)
-    # print(data["product_id"])
-    await orm_create_order(user_id, data, session)
 
+async def order(session, user_id, data):
+    await orm_create_order(user_id, data, session)
 
     banner = await orm_get_banner(session, "main")
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
@@ -150,8 +141,8 @@ async def order(session, user_id, data):
 
     return image, kbds
 
-async def my_orders(session, level, page, user_id):
 
+async def my_orders(session, level, page, user_id):
     my_orders = await get_orders(session, user_id)
 
     if not my_orders:
@@ -168,18 +159,12 @@ async def my_orders(session, level, page, user_id):
     else:
         paginator = Paginator(my_orders, page=page)
         order = paginator.get_page()[0]
-        # product = await orm_get_product(session, order.user.cart.product.id, user_id)
         product = await orm_get_product(session, order.product_id)
-        # await orm_delete_from_cart(session, user_id, order.product.id)
         image = InputMediaPhoto(
             media=product.image,
             caption=f"<strong>{product.name}</strong>\n{product.description}"
                     f"\n{order.status}\nОплачен:{order.paid}\nК оплате{order.total_price}"
-            # caption=f"<strong>{product.name}</strong>\n{product.price}$ x {order.user.cart.quantity} = "
-            #         f"{product.price * order.user.cart.quantity
-            # }$\nТовар {paginator.page} из {paginator.len} в корзине.\n К оплате: {product.price * order.user.cart.quantity}",
         )
-        # print(order.id)
         pagination_btns = pages(paginator)
 
         kbds = get_user_orders(
@@ -201,11 +186,8 @@ async def delete_order_user(session, order_id, level, page, user_id):
     return image, kbds
 
 
-
-
 async def payment(callback=None):
-    # price = orm_get_total_price()
-    payment = await create_payment(
+    my_payment = await create_payment(
         amount=100.00,
         description="Тестовая оплата"
     )
@@ -216,20 +198,20 @@ async def payment(callback=None):
         currency="RUB",
         prices=[LabeledPrice(label="Товар", amount=10000)],
         payload="test_payload",
-        start_parameter=payment.id
+        start_parameter=my_payment.id
     ))
-    ...
+
 
 async def get_menu_content(
-    session: AsyncSession,
-    level: int,
-    menu_name: str,
-    category: int | None = None,
-    page: int | None = None,
-    product_id: int | None = None,
-    order_id: int | None = None,
-    user_id: int | None = None,
-    data: dict | None = None
+        session: AsyncSession,
+        level: int,
+        menu_name: str,
+        category: int | None = None,
+        page: int | None = None,
+        product_id: int | None = None,
+        order_id: int | None = None,
+        user_id: int | None = None,
+        data: dict | None = None
 ):
     if level == 0:
         return await main_menu(session, level, menu_name)
@@ -247,4 +229,3 @@ async def get_menu_content(
         return await payment()
     elif level == 7:
         return await delete_order_user(session, order_id, level, page, user_id)
-

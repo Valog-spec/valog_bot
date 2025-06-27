@@ -1,11 +1,10 @@
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import  InlineKeyboardButton
 from aiogram.filters.callback_data import CallbackData
 from typing import Optional
 
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-# 1. Определяем CallbackData модели
 class OrderCallback(CallbackData, prefix="order"):
     action: str
     order_id: int
@@ -13,7 +12,7 @@ class OrderCallback(CallbackData, prefix="order"):
 
 
 class AdminAction(CallbackData, prefix="admin"):
-    action: str  # "list_orders", "cancel"
+    action: str
 
 
 def get_admin_keyboard():

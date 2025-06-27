@@ -26,18 +26,8 @@ admin_router = Router()
 admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 
 
-# ADMIN_KB = get_keyboard(
-#     "Добавить товар",
-#     "Ассортимент",
-#     "Добавить/Изменить баннер",
-#     "Заказы",
-#     placeholder="Выберите действие",
-#     sizes=(2,),
-# )
-
-
 @admin_router.message(Command("admin"))
-async def start(message: types.Message, session:AsyncSession):
+async def start(message: types.Message, session: AsyncSession):
     media, reply_markup = await get_admin_menu_content(session, action="main")
     if not media:
         await message.answer("Что хотите сделать?", reply_markup=reply_markup)
@@ -45,19 +35,12 @@ async def start(message: types.Message, session:AsyncSession):
         await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
 
 
-
-# @admin_router.message(F.text == "Заказы")
-# async def orders(message: types.Message, session: AsyncSession):
-#     orders = await get_all_orders(session)
-#     await message.answer(f"вот все заказы {orders}")
-
-
 @admin_router.callback_query(AdminAction.filter())
 async def list_orders(callback: types.CallbackQuery, callback_data: AdminAction, session: AsyncSession,
                       state: FSMContext):
     if callback_data.action == "catalog":
-       await admin_features(callback.message, session)
-       return
+        await admin_features(callback.message, session)
+        return
     elif callback_data.action == "add_product":
         await callback.message.answer(
             "Введите название товара",
@@ -72,7 +55,6 @@ async def list_orders(callback: types.CallbackQuery, callback_data: AdminAction,
                                  \n{', '.join(pages_names)}")
         await state.set_state(AddBanner.image)
         return
-    # elif callback_data.action ==
 
     media, reply_markup = await get_admin_menu_content(
         session,
@@ -83,10 +65,8 @@ async def list_orders(callback: types.CallbackQuery, callback_data: AdminAction,
     await callback.answer()
 
 
-
 @admin_router.callback_query(OrderCallback.filter())
-async def view_order(callback: CallbackQuery, callback_data: OrderCallback, session:AsyncSession):
-
+async def view_order(callback: CallbackQuery, callback_data: OrderCallback, session: AsyncSession):
     media, reply_markup = await get_admin_menu_content(
         session,
         action=callback_data.action,
@@ -100,7 +80,7 @@ async def view_order(callback: CallbackQuery, callback_data: OrderCallback, sess
 
 async def admin_features(message: types.Message, session: AsyncSession):
     categories = await orm_get_categories(session)
-    btns = {category.name : f'category_{category.id}' for category in categories}
+    btns = {category.name: f'category_{category.id}' for category in categories}
     await message.answer("Выберите категорию", reply_markup=get_callback_btns(btns=btns))
 
 
@@ -133,16 +113,9 @@ async def delete_product_callback(callback: types.CallbackQuery, session: AsyncS
     await callback.message.answer("Товар удален!")
 
 
-
 class AddBanner(StatesGroup):
     image = State()
 
-# @admin_router.message(StateFilter(None), F.text == 'Добавить/Изменить баннер')
-# async def add_image2(message: types.Message, state: FSMContext, session: AsyncSession):
-#     pages_names = [page.name for page in await orm_get_info_pages(session)]
-#     await message.answer(f"Отправьте фото баннера.\nВ описании укажите для какой страницы:\
-#                          \n{', '.join(pages_names)}")
-#     await state.set_state(AddBanner.image)
 
 @admin_router.message(AddBanner.image, F.photo)
 async def add_banner(message: types.Message, state: FSMContext, session: AsyncSession):
@@ -153,16 +126,14 @@ async def add_banner(message: types.Message, state: FSMContext, session: AsyncSe
         await message.answer(f"Введите нормальное название страницы, например:\
                          \n{', '.join(pages_names)}")
         return
-    await orm_change_banner_image(session, for_page, image_id,)
+    await orm_change_banner_image(session, for_page, image_id, )
     await message.answer("Баннер добавлен/изменен.", reply_markup=get_admin_keyboard())
     await state.clear()
+
 
 @admin_router.message(AddBanner.image)
 async def add_banner2(message: types.Message, state: FSMContext):
     await message.answer("Отправьте фото баннера или отмена")
-
-
-
 
 
 class AddProduct(StatesGroup):
@@ -184,10 +155,9 @@ class AddProduct(StatesGroup):
     }
 
 
-# Становимся в состояние ожидания ввода name
 @admin_router.callback_query(StateFilter(None), F.data.startswith("change_"))
 async def change_product_callback(
-    callback: types.CallbackQuery, state: FSMContext, session: AsyncSession
+        callback: types.CallbackQuery, state: FSMContext, session: AsyncSession
 ):
     product_id = callback.data.split("_")[-1]
 
@@ -200,14 +170,6 @@ async def change_product_callback(
         "Введите название товара", reply_markup=types.ReplyKeyboardRemove()
     )
     await state.set_state(AddProduct.name)
-
-
-# @admin_router.message(StateFilter(None), F.data == "Добавить товар")
-# async def add_product(message: types.Message, state: FSMContext):
-#     await message.answer(
-#         "Введите название товара", reply_markup=types.ReplyKeyboardRemove()
-#     )
-#     await state.set_state(AddProduct.name)
 
 
 @admin_router.message(StateFilter("*"), Command("отмена"))
@@ -260,6 +222,7 @@ async def add_name(message: types.Message, state: FSMContext):
     await message.answer("Введите описание товара")
     await state.set_state(AddProduct.description)
 
+
 @admin_router.message(AddProduct.name)
 async def add_name2(message: types.Message, state: FSMContext):
     await message.answer("Вы ввели не допустимые данные, введите текст названия товара")
@@ -278,9 +241,10 @@ async def add_description(message: types.Message, state: FSMContext, session: As
         await state.update_data(description=message.text)
 
     categories = await orm_get_categories(session)
-    btns = {category.name : str(category.id) for category in categories}
+    btns = {category.name: str(category.id) for category in categories}
     await message.answer("Выберите категорию", reply_markup=get_callback_btns(btns=btns))
     await state.set_state(AddProduct.category)
+
 
 @admin_router.message(AddProduct.description)
 async def add_description2(message: types.Message, state: FSMContext):
@@ -288,7 +252,7 @@ async def add_description2(message: types.Message, state: FSMContext):
 
 
 @admin_router.callback_query(AddProduct.category)
-async def category_choice(callback: types.CallbackQuery, state: FSMContext , session: AsyncSession):
+async def category_choice(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     if int(callback.data) in [category.id for category in await orm_get_categories(session)]:
         await callback.answer()
         await state.update_data(category=callback.data)
@@ -297,6 +261,7 @@ async def category_choice(callback: types.CallbackQuery, state: FSMContext , ses
     else:
         await callback.message.answer('Выберите катеорию из кнопок.')
         await callback.answer()
+
 
 @admin_router.message(AddProduct.category)
 async def category_choice2(message: types.Message, state: FSMContext):
@@ -317,6 +282,7 @@ async def add_price(message: types.Message, state: FSMContext):
         await state.update_data(price=message.text)
     await message.answer("Загрузите изображение товара")
     await state.set_state(AddProduct.image)
+
 
 @admin_router.message(AddProduct.price)
 async def add_price2(message: types.Message, state: FSMContext):
@@ -341,10 +307,10 @@ async def add_image(message: types.Message, state: FSMContext, session: AsyncSes
     await message.answer("Товар добавлен/изменен", reply_markup=get_admin_keyboard())
     await state.clear()
 
-
     await state.clear()
 
     AddProduct.product_for_change = None
+
 
 @admin_router.message(AddProduct.image)
 async def add_image2(message: types.Message, state: FSMContext):

@@ -1,4 +1,3 @@
-
 class Paginator:
     def __init__(self, array: list | tuple, page: int=1):
         self.array = array

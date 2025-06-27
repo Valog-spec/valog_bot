@@ -1,18 +1,10 @@
-from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, BigInteger, func, Table, Column, Integer
+from sqlalchemy import DateTime, ForeignKey, Numeric, String, Text, BigInteger, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
     created: Mapped[DateTime] = mapped_column(DateTime, default=func.now())
     updated: Mapped[DateTime] = mapped_column(DateTime, default=func.now(), onupdate=func.now())
-
-
-# order_product = Table(
-#     'order_product',
-#     Base.metadata,
-#     Column('student_id', Integer, ForeignKey('students.id'), primary_key=True),
-#     Column('course_id', Integer, ForeignKey('courses.id'), primary_key=True)
-# )
 
 
 class Banner(Base):
@@ -37,13 +29,11 @@ class Product(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str] = mapped_column(Text)
-    price: Mapped[float] = mapped_column(Numeric(5,2), nullable=False)
+    price: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False)
     image: Mapped[str] = mapped_column(String(150))
     category_id: Mapped[int] = mapped_column(ForeignKey('category.id', ondelete='CASCADE'), nullable=False)
 
     category: Mapped['Category'] = relationship(backref='product')
-    # order: Mapped['Order'] = relationship(secondary=order_product, back_populates="orders")
-
 
 
 class User(Base):
@@ -52,11 +42,9 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     first_name: Mapped[str] = mapped_column(String(150), nullable=True)
-    last_name: Mapped[str]  = mapped_column(String(150), nullable=True)
+    last_name: Mapped[str] = mapped_column(String(150), nullable=True)
 
     cart: Mapped['Cart'] = relationship(back_populates="user")
-
-
 
 
 class Cart(Base):
@@ -77,19 +65,12 @@ class Order(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     full_name: Mapped[str]
     user_id: Mapped[int] = mapped_column(ForeignKey("user.user_id", ondelete="CASCADE"))
-    phone: Mapped[str]  = mapped_column(String(13), nullable=True)
-    product_id: Mapped[int] =  mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
+    phone: Mapped[str] = mapped_column(String(13), nullable=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("product.id", ondelete="CASCADE"))
     paid: Mapped[bool] = mapped_column(default=False)
     total_price: Mapped[int]
     status: Mapped[str]
     address: Mapped[str]
 
-
-
     user: Mapped['User'] = relationship(backref='order')
     product: Mapped['Product'] = relationship(backref="product")
-    # product: Mapped['Product'] = relationship(secondary=order_product, back_populates="products")
-
-
-
-
