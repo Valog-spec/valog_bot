@@ -1,9 +1,8 @@
-from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import InputMediaPhoto
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import orm_get_banner, get_all_orders, get_order_by_order_id, delete_order
-from kbds.inline_admin import get_orders_keyboard, get_admin_keyboard, get_order_actions_keyboard, \
+from kbds.inline.admin.inline_admin import get_orders_keyboard, get_admin_keyboard, get_order_actions_keyboard, \
     get_statuses_keyboard, get_confirm_delete_keyboard
 
 
