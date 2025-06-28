@@ -1,25 +1,20 @@
 import asyncio
 
-from aiogram import Dispatcher
-
+from aiogram import Bot, Dispatcher
 from dotenv import find_dotenv, load_dotenv
 
 from bot_instance import bot
 
 load_dotenv(find_dotenv())
 
+from database.engine import create_db, session_maker
+from handlers.admin.admin_private import admin_router
+from handlers.group.user_group import user_group_router
+from handlers.user.user_private import user_private_router
+from logger.logger_helper import get_logger
 from middlewares.db import DataBaseSession
 
-from database.engine import create_db, session_maker
-
-from handlers.user.user_private import user_private_router
-from handlers.group.user_group import user_group_router
-from handlers.admin.admin_private import admin_router
-
-
-# bot = Bot(token=os.getenv('TOKEN'), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-# bot.my_admins_list = []
-
+logger = get_logger("logger.app")
 
 dp = Dispatcher()
 
@@ -28,21 +23,26 @@ dp.include_router(user_group_router)
 dp.include_router(admin_router)
 
 
-async def on_startup(bot):
-    # await drop_db()
-
+async def on_startup() -> None:
+    """
+    Функция инициализации при запуске бота
+    """
+    logger.info("Создание базы данных")
     await create_db()
+    logger.info("База данных успешно создана")
 
 
-async def main():
+async def main() -> None:
+    logger.info("Настройка перед созданием")
     dp.startup.register(on_startup)
 
+    logger.debug("Добавление Database middleware")
     dp.update.middleware(DataBaseSession(session_pool=session_maker))
 
     await bot.delete_webhook(drop_pending_updates=True)
-    # await bot.delete_my_commands(scope=types.BotCommandScopeAllPrivateChats())
-    # await bot.set_my_commands(commands=private, scope=types.BotCommandScopeAllPrivateChats())
+    logger.info("Запуск бота в режиме polling")
     await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
