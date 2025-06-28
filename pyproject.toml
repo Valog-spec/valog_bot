@@ -76,7 +76,7 @@ dependencies = [
     "yarl==1.20.1",
     "yookassa==3.5.0",
 ]
-requires-python = ">=3.13"
+requires-python = ">=3.7"
 readme = "README.md"
 license = {text = "MIT"}
 
