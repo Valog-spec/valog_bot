@@ -1,10 +1,13 @@
+from typing import List, Optional, cast
+
 from aiogram import F, Router, types
 from aiogram.filters import Command, StateFilter, or_f
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, InaccessibleMessage, InputMediaPhoto, PhotoSize
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.models import Product
 from database.orm_query import (
     orm_add_product,
     orm_change_banner_image,
@@ -40,20 +43,20 @@ async def start(message: types.Message, session: AsyncSession) -> None:
         message (types.Message): Входящее сообщение от пользователя
         session (AsyncSession): Асинхронная сессия SQLAlchemy
     """
-    logger.info(f"Администратор {message.from_user.id} запросил меню")
+    logger.info("Администратор %d запросил меню", message.from_user.id)
     media, reply_markup = await get_admin_menu_content(session, action="main")
     if not media:
         logger.debug(
-            f"Отправка текстового меню для администратора {message.from_user.id}"
+            "Отправка текстового меню для администратора %d", message.from_user.id
         )
         await message.answer("Что хотите сделать?", reply_markup=reply_markup)
     else:
-        logger.debug(f"Отправка меню для администратора {message.from_user.id}")
+        logger.debug("Отправка меню для администратора %d", message.from_user.id)
         await message.answer_photo(
             media.media, caption=media.caption, reply_markup=reply_markup
         )
     logger.info(
-        f"Меню администратора успешно отправлено пользователю {message.from_user.id}"
+        "Меню администратора успешно отправлено пользователю %d", message.from_user.id
     )
 
 
@@ -74,11 +77,11 @@ async def list_orders(
         state (FSMContext): Контекст машины состояний
     """
     if callback_data.action == "catalog":
-        logger.info(f"Админ {callback.from_user.id} запросил каталог")
+        logger.info("Админ %d запросил каталог", callback.from_user.id)
         await admin_features(callback.message, session)
         return
     elif callback_data.action == "add_product":
-        logger.info(f"Админ {callback.from_user.id} начал добавление товара")
+        logger.info("Админ %dначал добавление товара", callback.from_user.id)
         await callback.message.answer(
             "Введите название товара", reply_markup=types.ReplyKeyboardRemove()
         )
@@ -86,7 +89,7 @@ async def list_orders(
         await callback.answer()
         return
     elif callback_data.action == "banner":
-        logger.info(f"Админ {callback.from_user.id} начал добавление баннера")
+        logger.info("Админ %d начал добавление баннера", callback.from_user.id)
         pages_names = [page.name for page in await orm_get_info_pages(session)]
         await callback.message.answer(
             f"Отправьте фото баннера.\nВ описании укажите для какой страницы:\
@@ -95,15 +98,19 @@ async def list_orders(
         await state.set_state(AddBanner.image)
         return
     logger.debug(
-        f"Админ {callback.from_user.id} запросил меню действия: {callback_data.action}"
+        "Админ %d запросил меню действия: %s",
+        callback.from_user.id,
+        callback_data.action,
     )
     media, reply_markup = await get_admin_menu_content(
         session,
         action=callback_data.action,
     )
 
-    await callback.message.edit_media(media=media, reply_markup=reply_markup)
-    logger.debug(f"Меню для действия {callback_data.action} успешно обновлено")
+    await callback.message.edit_media(
+        media=cast(InputMediaPhoto, media), reply_markup=reply_markup
+    )
+    logger.debug("Меню для действия %s успешно обновлено", callback_data.action)
     await callback.answer()
 
 
@@ -121,9 +128,11 @@ async def view_order(
 
     """
     logger.info(
-        f"Обработка callback по заказу. Пользователь: {callback.from_user.id}, "
-        f"Действие: {callback_data.action}, Заказ: {callback_data.order_id}, "
-        f"Статус: {callback_data.status}"
+        "Обработка callback по заказу. Пользователь: %d Действие: %s, Заказ: %d, Статус: %s",
+        callback.from_user.id,
+        callback_data.action,
+        callback_data.order_id,
+        callback_data.status,
     )
     media, reply_markup = await get_admin_menu_content(
         session,
@@ -132,14 +141,20 @@ async def view_order(
         status=callback_data.status,
     )
 
-    await callback.message.edit_media(media=media, reply_markup=reply_markup)
+    await callback.message.edit_media(
+        media=cast(InputMediaPhoto, media), reply_markup=reply_markup
+    )
     await callback.answer()
     logger.info(
-        f"Callback по заказу {callback_data.order_id}обработан, Пользователь: {callback.from_user.id}"
+        "Callback по заказу %d обработан, Пользователь: %d",
+        callback_data.order_id,
+        callback.from_user.id,
     )
 
 
-async def admin_features(message: types.Message, session: AsyncSession) -> None:
+async def admin_features(
+    message: types.Message | InaccessibleMessage | None, session: AsyncSession
+) -> None:
     """
     Отображает интерфейс выбора категорий для администратора
 
@@ -147,14 +162,14 @@ async def admin_features(message: types.Message, session: AsyncSession) -> None:
         message (types.Message): Входящее сообщение от администратора
         session (AsyncSession): Асинхронная сессия SQLAlchemy
     """
-    logger.info(f"Администратор {message.from_user.id} запросил список категорий")
+    logger.info("Администратор %d запросил список категорий", message.from_user.id)
     categories = await orm_get_categories(session)
     btns = {category.name: f"category_{category.id}" for category in categories}
     await message.answer(
         "Выберите категорию", reply_markup=get_callback_btns(btns=btns)
     )
     logger.info(
-        f"Список категорий успешно отправлен администратору {message.from_user.id}"
+        "Список категорий успешно отправлен администратору %d, ", message.from_user.id
     )
 
 
@@ -171,12 +186,14 @@ async def starring_at_product(
     """
 
     logger.info(
-        f"Админ {callback.from_user.id} выбрал категорию. Callback data: {callback.data}"
+        "Админ %d выбрал категорию. Callback data: %s",
+        callback.from_user.id,
+        callback.data,
     )
     category_id = callback.data.split("_")[-1]
-    logger.debug(f"Извлечен ID категории: {category_id}")
+    logger.debug("Извлечен ID категории: %d", category_id)
     for product in await orm_get_products(session, int(category_id)):
-        logger.debug(f"Отправка товара ID {product.id}. Название: {product.name}")
+        logger.debug("Отправка товара ID %d. Название: %s", product.id, product.name)
         await callback.message.answer_photo(
             product.image,
             caption=f"<strong>{product.name}\
@@ -192,7 +209,9 @@ async def starring_at_product(
     await callback.answer()
     await callback.message.answer("ОК, вот список товаров ⏫")
     logger.info(
-        f"Завершена обработка категории {category_id} для админа {callback.from_user.id}"
+        "Завершена обработка категории %d для админа %d",
+        category_id,
+        callback.from_user.id,
     )
 
 
@@ -208,14 +227,16 @@ async def delete_product_callback(
         session (AsyncSession): Асинхронная сессия SQLAlchemy
     """
     logger.info(
-        f"Начало удаления товара. Пользователь: {callback.from_user.id}, Callback data: {callback.data}"
+        "Начало удаления товара. Пользователь: %d, Callback data: %s",
+        callback.from_user.id,
+        callback.data,
     )
     product_id = callback.data.split("_")[-1]
 
-    logger.debug(f"Извлечен ID товара для удаления: {product_id}")
+    logger.debug("Извлечен ID товара для удаления: %d", product_id)
     await orm_delete_product(session, int(product_id))
     logger.info(
-        f"Товар {product_id} успешно удален из БД. Удалил: {callback.from_user.id}"
+        "Товар %d успешно удален из БД. Удалил: %d", product_id, callback.from_user.id
     )
 
     await callback.answer("Товар удален")
@@ -243,11 +264,11 @@ async def add_banner(
         state: Текущее состояние FSM
         session: Асинхронная сессия SQLAlchemy
     """
-
-    image_id = message.photo[-1].file_id
+    photos = cast(List[PhotoSize], message.photo)
+    image_id = photos[-1].file_id
     for_page = message.caption.strip()
     pages_names = [page.name for page in await orm_get_info_pages(session)]
-    logger.info(f"Попытка добавления баннера для страницы: {for_page}")
+    logger.info("Попытка добавления баннера для страницы: %s", for_page)
     if for_page not in pages_names:
         await message.answer(
             f"Введите нормальное название страницы, например:\
@@ -259,7 +280,7 @@ async def add_banner(
         for_page,
         image_id,
     )
-    logger.info(f"Баннер для страницы {for_page} успешно обновлен")
+    logger.info("Баннер для страницы %s успешно обновлен", for_page)
     await message.answer("Баннер добавлен/изменен.", reply_markup=get_admin_keyboard())
     await state.clear()
 
@@ -297,7 +318,7 @@ class AddProduct(StatesGroup):
     price = State()
     image = State()
 
-    product_for_change = None
+    product_for_change: Optional[Product] = None
 
     texts = {
         "AddProduct:name": "Введите название заново:",
@@ -320,15 +341,17 @@ async def change_product_callback(
         state (FSMContext): Контекст машины состояний
         session (AsyncSession): Асинхронная сессия для работы с БД
     """
-    logger.info(f"Получен запрос на изменение товара. Callback data: {callback.data}")
+    logger.info("Получен запрос на изменение товара. Callback data: %s", callback.data)
     product_id = callback.data.split("_")[-1]
 
     product_for_change = await orm_get_product(session, int(product_id))
-    logger.info(f"Товар для изменения получен из БД. ID: {product_id}")
+    logger.info("Товар для изменения получен из БД. ID: %d", product_id)
 
     AddProduct.product_for_change = product_for_change
     logger.info(
-        f"Установлен товар для изменения. ID: {product_id}, Название: {product_for_change.name}"
+        "Установлен товар для изменения. ID: %d, Название: %s",
+        product_id,
+        product_for_change.name,
     )
 
     await callback.answer()
@@ -336,7 +359,7 @@ async def change_product_callback(
         "Введите название товара", reply_markup=types.ReplyKeyboardRemove()
     )
     logger.info(
-        f"Начат процесс изменения товара. ID: {product_id}. Ожидается ввод названия"
+        "Начат процесс изменения товара. ID: %d. Ожидается ввод названия", product_id
     )
     await state.set_state(AddProduct.name)
 
@@ -351,7 +374,7 @@ async def cancel_handler(message: types.Message, state: FSMContext) -> None:
         message (types.Message): Входящее сообщение с командой отмены
         state (FSMContext): Контекст машины состояний
     """
-    logger.info(f"Получена команда отмены от пользователя {message.from_user.id}")
+    logger.info("Получена команда отмены от пользователя %d", message.from_user.id)
 
     current_state = await state.get_state()
     if current_state is None:
@@ -375,7 +398,7 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
        message (types.Message): Входящее сообщение с командой
        state (FSMContext): Контекст машины состояний
     """
-    logger.info(f"Получена команда 'назад' от пользователя {message.from_user.id}")
+    logger.info("Получена команда 'назад' от пользователя %d", message.from_user.id)
     current_state = await state.get_state()
 
     if current_state == AddProduct.name:
@@ -389,11 +412,13 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
     previous = None
     for step in AddProduct.__all_states__:
         if step.state == current_state:
-            logger.info(f"Найден текущий шаг в цепочке состояний: {current_state}")
+            assert previous is not None
+            logger.info("Найден текущий шаг в цепочке состояний: %s", current_state)
             await state.set_state(previous)
-            logger.info(f"Успешный возврат на предыдущий шаг: {previous.state}")
+            logger.info("Успешный возврат на предыдущий шаг: %s", previous.state)
             await message.answer(
-                f"Ок, вы вернулись к прошлому шагу \n {AddProduct.texts[previous.state]}"
+                "Ок, вы вернулись к прошлому шагу \n %s",
+                AddProduct.texts[cast(str, previous.state)],
             )
             return
         previous = step
@@ -408,20 +433,24 @@ async def add_name(message: types.Message, state: FSMContext) -> None:
         state (FSMContext): Контекст машины состояний
     """
     logger.info(
-        f"Получено название товара: '{message.text}' | Режим изменения: {bool(AddProduct.product_for_change)}"
+        "Получено название товара: '%s' | Режим изменения: %s",
+        message.text,
+        bool(AddProduct.product_for_change),
     )
     if message.text == "." and AddProduct.product_for_change:
         await state.update_data(name=AddProduct.product_for_change.name)
         logger.info("Использовано старое название товара")
     else:
-        if 4 >= len(message.text) >= 150:
+        if 4 >= len(cast(str, message.text)) >= 150:
             await message.answer(
                 "Название товара не должно превышать 150 символов\nили быть менее 5ти символов. \n Введите заново"
             )
-            logger.warning(f"Некорректная длина названия: {len(message.text)} символов")
+            logger.warning(
+                "Некорректная длина названия: %d символов", len(cast(str, message.text))
+            )
             return
         await state.update_data(name=message.text)
-        logger.info(f"Сохранено новое название товара: '{message.text}'")
+        logger.info("Сохранено новое название товара: '%s'", message.text)
     await message.answer("Введите описание товара")
     logger.info("Переход к состоянию ввода описания товара")
     await state.set_state(AddProduct.description)
@@ -436,7 +465,7 @@ async def add_name2(message: types.Message) -> None:
         message (types.Message): Сообщение с невалидными данными
     """
     logger.warning(
-        f"Получен невалидный ввод названия товара, User ID: {message.from_user.id}"
+        "Получен невалидный ввод названия товара, User ID: %d", message.from_user.id
     )
     await message.answer("Вы ввели не допустимые данные, введите текст названия товара")
 
@@ -455,17 +484,18 @@ async def add_description(
     """
 
     logger.info(
-        f"Начало обработки описания товара. Режим: {'изменение' if AddProduct.product_for_change else 'добавление'}"
+        "Начало обработки описания товара. Режим: %s",
+        "изменение" if AddProduct.product_for_change else "добавление",
     )
     if message.text == "." and AddProduct.product_for_change:
         logger.info("Использовано старое описание товара")
         await state.update_data(description=AddProduct.product_for_change.description)
     else:
-        if 4 >= len(message.text):
+        if 4 >= len(cast(str, message.text)):
             logger.warning("Слишком короткое описание")
             await message.answer("Слишком короткое описание. \n Введите заново")
             return
-        logger.info(f"Сохранено новое описание товара. Длина")
+        logger.info("Сохранено новое описание товара. Длина")
         await state.update_data(description=message.text)
 
     logger.debug("Загрузка категорий из БД")
@@ -489,9 +519,7 @@ async def add_description2(message: types.Message):
         state (FSMContext): Контекст машины состояний
 
     """
-    logger.warning(
-        f"Невалидный ввод описания! User: {message.from_user.id} ({message.from_user.username}"
-    )
+    logger.warning("Невалидный ввод описания! User: %d", {message.from_user.id})
 
     await message.answer("Вы ввели не допустимые данные, введите текст описания товара")
 
@@ -510,18 +538,20 @@ async def category_choice(
     """
 
     logger.info(
-        f"Обработка выбора категории. User: {callback.from_user.id}, Выбор: {callback.data}"
+        "Обработка выбора категории. User: %d, Выбор: %s",
+        callback.from_user.id,
+        callback.data,
     )
-    if int(callback.data) in [
+    if int(cast(str, callback.data)) in [
         category.id for category in await orm_get_categories(session)
     ]:
         await callback.answer()
         await state.update_data(category=callback.data)
-        logger.debug(f"User {callback.from_user.id}: переход к состоянию ввода цены")
+        logger.debug("User %d: переход к состоянию ввода цены", callback.from_user.id)
         await callback.message.answer("Теперь введите цену товара.")
         await state.set_state(AddProduct.price)
     else:
-        logger.warning(f"Невалидный выбор категории: {callback.data}")
+        logger.warning("Невалидный выбор категории: %s", callback.data)
         await callback.message.answer("Выберите катеорию из кнопок.")
         await callback.answer()
 
@@ -534,7 +564,7 @@ async def category_choice2(message: types.Message):
     Args:
         message (types.Message): Сообщение с некорректным вводом
     """
-    logger.warning(f"Некорректный выбор категории! User ID: {message.from_user.id}")
+    logger.warning("Некорректный выбор категории! User ID: %d", message.from_user.id)
     await message.answer("'Выберите катеорию из кнопок.'")
 
 
@@ -549,20 +579,21 @@ async def add_price(message: types.Message, state: FSMContext) -> None:
     """
 
     logger.info(
-        f"Начало обработки цены. Режим: {'изменение' if AddProduct.product_for_change else 'добавление'}"
+        "Начало обработки цены. Режим: %s",
+        "изменение" if AddProduct.product_for_change else "добавление",
     )
     if message.text == "." and AddProduct.product_for_change:
         await state.update_data(price=AddProduct.product_for_change.price)
-        logger.info(f"Использована старая цена товара")
+        logger.info("Использована старая цена товара")
     else:
         try:
-            float(message.text)
+            float(cast(str, message.text))
         except ValueError:
             await message.answer("Введите корректное значение цены")
             return
 
         await state.update_data(price=message.text)
-        logger.info(f"Сохранена новая цена товара: {message.text}")
+        logger.info("Сохранена новая цена товара: %s", message.text)
     logger.debug("Переход к состоянию загрузки изображения")
     await message.answer("Загрузите изображение товара")
     await state.set_state(AddProduct.image)
@@ -576,7 +607,7 @@ async def add_price2(message: types.Message) -> None:
     Args:
         message (types.Message): Сообщение с невалидными данными
     """
-    logger.warning(f"Невалидный ввод цены! Пользователь: {message.from_user.id}")
+    logger.warning("Невалидный ввод цены! Пользователь: %d", message.from_user.id)
 
     await message.answer("Вы ввели не допустимые данные, введите стоимость товара")
 
@@ -594,7 +625,8 @@ async def add_image(
         session (AsyncSession): Асинхронная сессия для работы с БД
     """
     logger.info(
-        f"Начало обработки изображения товара. Режим: {'изменение' if AddProduct.product_for_change else 'добавление'}"
+        "Начало обработки изображения товара. Режим: %s",
+        "изменение" if AddProduct.product_for_change else "добавление",
     )
     if message.text and message.text == "." and AddProduct.product_for_change:
         logger.info("Использовано старое изображение товара")
@@ -608,9 +640,9 @@ async def add_image(
         await message.answer("Отправьте фото продукта")
         return
     data = await state.get_data()
-    logger.debug(f"Данные для сохранения: {data}")
+    logger.debug("Данные для сохранения: %s", data)
     if AddProduct.product_for_change:
-        logger.info(f"Обновление товара ID: {AddProduct.product_for_change.id}")
+        logger.info("Обновление товара ID: %d", AddProduct.product_for_change.id)
         await orm_update_product(session, AddProduct.product_for_change.id, data)
     else:
         logger.info("Добавление нового товара")
@@ -627,5 +659,5 @@ async def add_image2(message: types.Message) -> None:
     """
     Обработчик невалидного ввода изображения товара
     """
-    logger.warning(f"Невалидный ввод изображения! User ID: {message.from_user.id}")
+    logger.warning("Невалидный ввод изображения! User ID: %d", message.from_user.id)
     await message.answer("Отправьте фото пищи")

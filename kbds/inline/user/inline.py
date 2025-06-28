@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Any, Dict, Sequence, cast
 
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import (
@@ -30,7 +30,9 @@ class MenuCallBack(CallbackData, prefix="menu"):
     order_id: int | None = None
 
 
-def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)) -> InlineKeyboardMarkup:
+def get_user_main_btns(
+    *, level: int, sizes: tuple[int] = (2,)
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает главное меню пользователя с основными разделами
 
@@ -87,7 +89,7 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)) -> InlineKeyboar
 
 def get_user_catalog_btns(
     *, level: int, categories: Sequence, sizes: tuple[int] = (2,)
-) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает меню каталога с категориями товаров
 
@@ -133,8 +135,8 @@ def get_products_btns(
     page: int,
     pagination_btns: dict,
     product_id: int,
-    sizes: tuple[int] = (2, 1),
-) -> InlineKeyboardMarkup:
+    sizes: tuple[int, int] = (2, 1),
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру для работы с конкретным товаром
 
@@ -212,7 +214,7 @@ def get_user_cart(
     pagination_btns: dict | None,
     product_id: int | None,
     sizes: tuple[int] = (3,),
-) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру для работы с корзиной
 
@@ -256,7 +258,7 @@ def get_user_cart(
         keyboard.adjust(*sizes)
 
         row = []
-        for text, menu_name in pagination_btns.items():
+        for text, menu_name in cast(Dict[Any, Any], pagination_btns).items():
             if menu_name == "next":
                 row.append(
                     InlineKeyboardButton(
@@ -345,7 +347,7 @@ def get_user_orders(
     product_id: int | None,
     order_id: int | None,
     sizes: tuple[int] = (3,),
-) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру для работы с заказами пользователя
 
@@ -389,7 +391,7 @@ def get_user_orders(
         keyboard.adjust(*sizes)
 
         row = []
-        for text, menu_name in pagination_btns.items():
+        for text, menu_name in cast(Dict[Any, Any], pagination_btns).items():
             if menu_name == "next":
                 row.append(
                     InlineKeyboardButton(
@@ -431,7 +433,7 @@ def get_user_orders(
 
 def get_callback_btns(
     *, btns: dict[str, str], sizes: tuple[int] = (2,)
-) -> InlineKeyboardMarkup:
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает кастомную клавиатуру из переданных кнопок
 

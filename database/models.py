@@ -161,7 +161,7 @@ class Order(Base):
         ForeignKey("product.id", ondelete="CASCADE")
     )
     paid: Mapped[bool] = mapped_column(default=False)
-    total_price: [float] = mapped_column(Numeric(5, 2), nullable=True)
+    total_price: Mapped[float] = mapped_column(Numeric(5, 2), nullable=True)
     status: Mapped[str]
     address: Mapped[str]
 

@@ -4,7 +4,7 @@ from logging import Logger
 from logger.config.config import dict_config
 
 
-def get_logger(name) -> Logger:
+def get_logger(name: str) -> Logger:
     """
     Создает и возвращает логгер с заданным именем, используя предустановленную конфигурацию
 
@@ -14,5 +14,4 @@ def get_logger(name) -> Logger:
         Logger: Объект логгера, настроенный согласно конфигурации dict_config.
     """
     logging.config.dictConfig(dict_config)
-    logger = logging.getLogger(name)
-    return logger
+    return logging.getLogger(name)

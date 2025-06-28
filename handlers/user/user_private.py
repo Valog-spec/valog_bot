@@ -1,3 +1,5 @@
+from typing import cast
+
 from aiogram import F, Router, types
 from aiogram.enums import ContentType
 from aiogram.filters import Command, CommandStart, StateFilter, or_f
@@ -33,7 +35,7 @@ async def start_cmd(message: types.Message, session: AsyncSession) -> None:
        message (types.Message): Входящее сообщение с командой
        session (AsyncSession): Асинхронная сессия для работы с БД
     """
-    logger.info(f"Обработка /start. User ID: {message.from_user.id}")
+    logger.info("Обработка /start. User ID: %d", message.from_user.id)
     logger.debug("Загрузка главного меню (level=0)")
     media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
 
@@ -56,18 +58,19 @@ async def add_to_cart(
     """
     user = callback.from_user
 
-    logger.info(f"Добавление товара в корзину. User: {user.id}")
-    logger.debug(f"Проверка/создание пользователя {user.id}")
+    logger.info("Добавление товара в корзину. User: %d", user.id)
+    logger.debug("Проверка/создание пользователя %d", user.id)
     await orm_add_user(
         session,
         user_id=user.id,
         first_name=user.first_name,
         last_name=user.last_name,
     )
-    logger.debug(f"Добавление товара в корзину {user.id}")
+    logger.debug("Добавление товара в корзину %d", user.id)
+    assert callback_data.product_id is not None
     await orm_add_to_cart(session, user_id=user.id, product_id=callback_data.product_id)
     await callback.answer("Товар добавлен в корзину.")
-    logger.info(f"Товар успешно добавлен в корзину {user.id}")
+    logger.info("Товар успешно добавлен в корзину %d", user.id)
 
 
 class AddOrder(StatesGroup):
@@ -106,25 +109,25 @@ async def user_menu(
         state (FSMContext): Контекст машины состояний
     """
 
-    logger.info(f"Обработка callback. User: {callback.from_user.id}")
+    logger.info("Обработка callback. User: %d", callback.from_user.id)
     if callback_data.menu_name == "add_to_cart":
-        logger.debug(f"Добавление товара в корзину")
+        logger.debug("Добавление товара в корзину")
         await add_to_cart(callback, callback_data, session)
         return
     elif callback_data.menu_name == "order":
-        logger.info(f"Начало оформления заказа для товара")
+        logger.info("Начало оформления заказа для товара")
         await callback.message.answer("Введите ФИО: ")
         await state.update_data(product_id=callback_data.product_id)
         await state.set_state(AddOrder.full_name)
         await callback.answer()
         return
     elif callback_data.menu_name == "payment":
-        logger.info(f"Начало оплаты заказа")
-        price = await orm_get_total_price(session, callback_data.order_id)
+        logger.info("Начало оплаты заказа")
+        price = await orm_get_total_price(session, cast(int, callback_data.order_id))
         payment = await create_payment(
             amount=price, description=f"Оплата заказа #{callback_data.order_id}"
         )
-        logger.info(f"Создана платежная сессия: {payment.id}")
+        logger.info("Создана платежная сессия: %d", payment.id)
 
         await callback.message.answer_invoice(
             title="Тестовый платеж",
@@ -162,13 +165,13 @@ async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery) -> None:
         pre_checkout_query (PreCheckoutQuery): Запрос подтверждения платежа
     """
     await pre_checkout_query.answer(ok=True)
-    logger.debug(f"Pre-checkout подтвержден для {pre_checkout_query.id}")
+    logger.debug("Pre-checkout подтвержден для %d", pre_checkout_query.id)
     await pre_checkout_query.bot.send_message(
         chat_id=pre_checkout_query.from_user.id,
         text="Спасибо за оплату! Проверяем платеж...",
     )
     logger.info(
-        f"Отправлено подтверждение пользователю {pre_checkout_query.from_user.id}"
+        "Отправлено подтверждение пользователю %d", pre_checkout_query.from_user.id
     )
 
 
@@ -185,16 +188,16 @@ async def process_successful_payment(
     """
     payment = message.successful_payment
     order_id = payment.invoice_payload.split("_")[1]
-    logger.debug(f"Обработка заказа {order_id}")
+    logger.debug("Обработка заказа %d", order_id)
     await change_order(session, int(order_id))
-    logger.info(f"Статус заказа {order_id} обновлен на 'оплачен'")
+    logger.info("Статус заказа %d обновлен на 'оплачен'", order_id)
     await message.answer(
         "✅ Платеж получен!\n"
         f"ID: {payment.telegram_payment_charge_id}\n"
         f"Сумма: {payment.total_amount / 100} {payment.currency}\n"
         f"Товар: {payment.invoice_payload}"
     )
-    logger.debug(f"Чек отправлен пользователю {message.from_user.id}")
+    logger.debug("Чек отправлен пользователю %d", message.from_user.id)
 
 
 @user_private_router.message(StateFilter("*"), Command("назад2"))
@@ -209,12 +212,15 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
     """
     current_state = await state.get_state()
     logger.info(
-        f"Пользователь {message.from_user.id} запросил возврат на предыдущий шаг. Текущее состояние: {current_state}"
+        "Пользователь %d запросил возврат на предыдущий шаг. Текущее состояние: %s",
+        message.from_user.id,
+        current_state,
     )
 
     if current_state == AddOrder.full_name:
         logger.info(
-            f"Пользователь {message.from_user.id} пытается вернуться назад из начального состояния"
+            "Пользователь %d пытается вернуться назад из начального состояния",
+            message.from_user.id,
         )
         await message.answer(
             'Предидущего шага нет, или введите название товара или напишите "отмена"'
@@ -224,12 +230,15 @@ async def back_step_handler(message: types.Message, state: FSMContext) -> None:
     previous = None
     for step in AddOrder.__all_states__:
         if step.state == current_state:
+            assert previous is not None
             await state.set_state(previous)
             logger.info(
-                f"Пользователь {message.from_user.id} возвращен к предыдущему шагу: {previous.state}"
+                "Пользователь %d возвращен к предыдущему шагу: %s",
+                message.from_user.id,
+                previous.state,
             )
             await message.answer(
-                f"Ок, вы вернулись к прошлому шагу \n {AddOrder.texts[previous.state]}"
+                f"Ок, вы вернулись к прошлому шагу \n {AddOrder.texts[cast(str, previous.state)]}"
             )
             return
         previous = step
@@ -252,11 +261,14 @@ async def cancel_handler(
     current_state = await state.get_state()
     if current_state is None:
         logger.info(
-            f"Пользователь {message.from_user.id} попытался отменить действие, но состояние уже пустое"
+            "Пользователь %d попытался отменить действие, но состояние уже пустое",
+            message.from_user.id,
         )
         return
     logger.info(
-        f"Пользователь {message.from_user.id} отменил действие. Текущее состояние очищено: {current_state}"
+        "Пользователь %d отменил действие. Текущее состояние очищено: %s",
+        message.from_user.id,
+        current_state,
     )
     await state.clear()
     media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
@@ -269,7 +281,7 @@ async def fio_process(message: types.Message, state: FSMContext) -> None:
     """
     Обрабатывает ввод ФИО при оформлении заказа
     """
-    logger.info(f"Пользователь {message.from_user.id} ввел ФИО: {message.text}")
+    logger.info("Пользователь %d ввел ФИО: %s", message.from_user.id, message.text)
     await state.update_data(full_name=message.text)
     await message.answer("Теперь введите адрес доставки:")
     await state.set_state(AddOrder.address)
@@ -288,7 +300,7 @@ async def address_process(message: types.Message, state: FSMContext) -> None:
     """
     Обрабатывает ввод адреса доставки
     """
-    logger.info(f"Пользователь {message.from_user.id} ввел адрес: {message.text}")
+    logger.info("Пользователь %d ввел адрес: %s", message.from_user.id, message.text)
     await state.update_data(address=message.text)
     await message.answer("Отпроавить номер телефона", reply_markup=contact())
     await state.set_state(AddOrder.phone)
@@ -312,12 +324,16 @@ async def phone_process(
     """
     if message.contact:
         logger.info(
-            f"Пользователь {message.from_user.id} отправил контакт: {message.contact.phone_number}"
+            "Пользователь %d отправил контакт: %d",
+            message.from_user.id,
+            message.contact.phone_number,
         )
         await state.update_data(phone=message.contact.phone_number)
     else:
         logger.info(
-            f"Пользователь {message.from_user.id} ввел телефон вручную: {message.text}"
+            "Пользователь %d ввел телефон вручную: %s",
+            message.from_user.id,
+            message.text,
         )
         await state.update_data(phone=message.text)
         await message.answer(text="Номер записан!", reply_markup=ReplyKeyboardRemove())
@@ -328,7 +344,9 @@ async def phone_process(
 
     await message.answer("Заказ в обработке", reply_markup=reply_markup)
     logger.info(
-        f"Завершение оформления заказа для пользователя {message.from_user.id}. Данные: {data}"
+        "Завершение оформления заказа для пользователя %d. Данные: %s",
+        message.from_user.id,
+        data,
     )
     await state.clear()
 

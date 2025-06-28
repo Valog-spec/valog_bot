@@ -1,14 +1,14 @@
-from aiogram.types import KeyboardButton, ReplyKeyboardMarkup
+from aiogram.types import InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 
 def get_keyboard(
     *btns: str,
-    placeholder: str = None,
-    request_contact: int = None,
-    request_location: int = None,
+    placeholder: str | None = None,
+    request_contact: int | None = None,
+    request_location: int | None = None,
     sizes: tuple[int] = (2,),
-) -> ReplyKeyboardMarkup:
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает кастомную клавиатуру с различными типами кнопок
 
@@ -52,11 +52,10 @@ def contact() -> ReplyKeyboardMarkup:
     Returns:
       ReplyKeyboardMarkup: Клавиатура с кнопкой отправить номер телефона
     """
-    contact_btn = ReplyKeyboardMarkup(
+    return ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="📱 Отправить номер", request_contact=True)],
         ],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
-    return contact_btn

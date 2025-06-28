@@ -18,7 +18,7 @@ async def create_payment(amount: float, description: str) -> Payment:
         Payment: Объект платежа YooMoney
 
     """
-    payment = Payment.create(
+    return Payment.create(
         {
             "amount": {"value": str(amount), "currency": "RUB"},
             "confirmation": {
@@ -30,4 +30,3 @@ async def create_payment(amount: float, description: str) -> Payment:
             "test": True,
         }
     )
-    return payment

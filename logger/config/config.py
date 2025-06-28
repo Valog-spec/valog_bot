@@ -1,4 +1,5 @@
 import logging
+from typing import Literal
 
 
 class LevelFileHandler(logging.Handler):
@@ -10,7 +11,9 @@ class LevelFileHandler(logging.Handler):
         mode (str): Режим работы с файлом
     """
 
-    def __init__(self, filename, mode="a"):
+    def __init__(
+        self, filename: str, mode: Literal["r", "rb", "w", "wb", "a", "ab"] = "a"
+    ) -> None:
         super().__init__()
         self.filename = filename
         self.mode = mode

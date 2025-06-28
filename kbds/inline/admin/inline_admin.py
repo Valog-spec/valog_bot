@@ -37,7 +37,7 @@ class AdminAction(CallbackData, prefix="admin"):
     action: str
 
 
-def get_admin_keyboard() -> InlineKeyboardMarkup:
+def get_admin_keyboard() -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру с основными действиями администратора
 
@@ -72,7 +72,7 @@ def get_admin_keyboard() -> InlineKeyboardMarkup:
     return keyboard.adjust(2).as_markup()
 
 
-def get_orders_keyboard(orders: Sequence) -> InlineKeyboardMarkup:
+def get_orders_keyboard(orders: Sequence) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру со списком заказов для администратора
 
@@ -99,7 +99,9 @@ def get_orders_keyboard(orders: Sequence) -> InlineKeyboardMarkup:
     return keyboard.adjust(2).as_markup()
 
 
-def get_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
+def get_order_actions_keyboard(
+    order_id: int,
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру с действиями для конкретного заказа
 
@@ -130,7 +132,7 @@ def get_order_actions_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return keyboard.adjust(2).as_markup()
 
 
-def get_statuses_keyboard(order_id: int) -> InlineKeyboardMarkup:
+def get_statuses_keyboard(order_id: int) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
     Создает клавиатуру с возможными статусами для заказа
 
@@ -175,7 +177,9 @@ def get_statuses_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return keyboard.adjust(2).as_markup()
 
 
-def get_confirm_delete_keyboard(order_id: int) -> InlineKeyboardMarkup:
+def get_confirm_delete_keyboard(
+    order_id: int,
+) -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
     """
      Создает клавиатуру подтверждения удаления заказа
 

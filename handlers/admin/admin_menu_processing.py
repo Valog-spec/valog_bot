@@ -1,8 +1,9 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, cast
 
 from aiogram.types import InputMediaPhoto
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from database.models import Banner, Order
 from database.orm_query import (
     delete_order,
     get_all_orders,
@@ -67,7 +68,7 @@ async def orders_list(session: AsyncSession) -> Tuple[InputMediaPhoto, Any]:
             - Any:  клавиатуру для управления заказами
     """
     logger.debug("Запрос баннера 'orders' из БД")
-    banner = await orm_get_banner(session, "orders")
+    banner = cast(Banner, await orm_get_banner(session, "orders"))
     logger.debug("Создание InputMediaPhoto для баннера заказов")
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
     logger.debug("Запрос всех заказов из БД")
@@ -93,17 +94,18 @@ async def view_order(
             - InputMediaPhoto: медиа-контент баннера заказов
             - Any: клавиатуру действий для заказа
     """
-    logger.info(f"Формирование представления заказа ID: {order_id}")
+    logger.info("Формирование представления заказа ID: %d", order_id)
 
     logger.debug("Запрос баннера 'orders' из БД")
 
-    banner = await orm_get_banner(session, "orders")
+    banner = cast(Banner, await orm_get_banner(session, "orders"))
+
     logger.debug("Создание InputMediaPhoto для баннера заказов")
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
 
-    logger.debug(f"Получение клавиатуры действий для заказа ID: {order_id}")
+    logger.debug("Получение клавиатуры действий для заказа ID: %d", order_id)
     kbds = get_order_actions_keyboard(order_id)
-    logger.info(f"Успешно сформировано представление для заказа ID: {order_id}")
+    logger.info("Успешно сформировано представление для заказа ID: %d", order_id)
     return image, kbds
 
 
@@ -124,10 +126,10 @@ async def change_status(
             - Any: обновленную клавиатуру со списком заказов
     """
 
-    logger.info(f"Изменение статуса заказа ID: {order_id} на '{status}'")
+    logger.info("Изменение статуса заказа ID: %d на '%s'", order_id, status)
 
-    logger.debug(f"Поиск заказа ID: {order_id}")
-    order = await get_order_by_order_id(order_id, session)
+    logger.debug("Поиск заказа ID: %d", order_id)
+    order = cast(Order, await get_order_by_order_id(order_id, session))
     kbds = get_statuses_keyboard(order_id)
     if status == "processing":
         order.status = "Обработка"
@@ -154,9 +156,10 @@ async def change_status(
     logger.info("Статус изменен")
 
     logger.debug("Получение баннера 'orders'")
-    banner = await orm_get_banner(session, "orders")
+    banner = cast(Banner, await orm_get_banner(session, "orders"))
+
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
-    logger.info(f"Успешно изменен статус заказа ID: {order_id}")
+    logger.info("Успешно изменен статус заказа ID: %d", order_id)
     return image, kbds
 
 
@@ -165,7 +168,8 @@ async def order_delete(
 ) -> Tuple[InputMediaPhoto | None, Any]:
     kbds = get_confirm_delete_keyboard(order_id)
 
-    banner = await orm_get_banner(session, "orders")
+    banner = cast(Banner, await orm_get_banner(session, "orders"))
+
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
 
     return image, kbds
@@ -187,10 +191,11 @@ async def confirm_delete(
             - Any: клавиатуру подтверждения удаления
     """
     logger.debug("Запрос баннера 'orders' из БД")
-    banner = await orm_get_banner(session, "orders")
+    banner = cast(Banner, await orm_get_banner(session, "orders"))
+
     logger.debug("Создание InputMediaPhoto для баннера заказов")
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
-    logger.info(f"Успешно подготовлено подтверждение удаления заказа ID: {order_id}")
+    logger.info("Успешно подготовлено подтверждение удаления заказа ID: %d", order_id)
     await delete_order(session, order_id)
     orders = await get_all_orders(session)
     kbds = get_orders_keyboard(orders)
@@ -203,7 +208,7 @@ async def get_admin_menu_content(
     action: str | None = None,
     order_id: int | None = None,
     status: str | None = None,
-) -> Tuple[InputMediaPhoto, Any] | None:
+) -> tuple[InputMediaPhoto | None, Any] | None:
     """
     Роутер для получения контента
 
@@ -219,19 +224,22 @@ async def get_admin_menu_content(
             - Any: соответствующая клавиатура
     """
     logger.info(
-        f"Запрос контента админ-меню. Действие: {action} OrderID: {order_id}, Статус: {status}"
+        "Запрос контента админ-меню. Действие: %s OrderID: %d, Статус: %s",
+        action,
+        order_id,
+        status,
     )
     if action == "main":
-        return await main(session)
+        return cast(Tuple[InputMediaPhoto, Any], await main(session))
     elif action == "list_orders":
-        return await orders_list(session)
+        return cast(Tuple[InputMediaPhoto, Any], await orders_list(session))
     elif action == "view":
-        return await view_order(order_id, session)
+        return cast(Tuple[InputMediaPhoto, Any], await view_order(order_id, session))  # type: ignore[arg-type]
     elif action == "edit_status":
-        return await change_status(session, order_id, status)
+        return cast(Tuple[InputMediaPhoto, Any], await change_status(session, order_id, status))  # type: ignore[arg-type]
     elif action == "delete":
-        return await order_delete(session, order_id)
+        return cast(Tuple[InputMediaPhoto, Any], await order_delete(session, order_id))  # type: ignore[arg-type]
     elif action == "confirm_delete":
-        return await confirm_delete(session, order_id)
+        return cast(Tuple[InputMediaPhoto, Any], await confirm_delete(session, order_id))  # type: ignore[arg-type]
     else:
         return None

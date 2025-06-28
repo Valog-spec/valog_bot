@@ -1,4 +1,4 @@
-from typing import Any, Coroutine, List, Sequence
+from typing import Optional, Sequence, cast
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,7 @@ async def orm_add_banner_description(session: AsyncSession, data: dict) -> None:
         session (AsyncSession): Асинхронная сессия SQLAlchemy
         data (dict): Словарь с данными баннеров
     """
-    logger.debug(f"Попытка добавить описания баннеров: {list(data.keys())}")
+    logger.debug("Попытка добавить описания баннеров: %s", list(data.keys()))
     query = select(Banner)
     result = await session.execute(query)
     if result.first():
@@ -47,7 +47,7 @@ async def orm_change_banner_image(session: AsyncSession, name: str, image: str) 
     Raises:
         ValueError: Если баннер с указанным именем не найден
     """
-    logger.debug(f"Запрос на обновление изображения баннера '{name}'")
+    logger.debug("Запрос на обновление изображения баннера '%s'", name)
     query = update(Banner).where(Banner.name == name).values(image=image)
     result = await session.execute(query)
     if result.rowcount == 0:
@@ -56,10 +56,10 @@ async def orm_change_banner_image(session: AsyncSession, name: str, image: str) 
         raise ValueError(error_msg)
 
     await session.commit()
-    logger.info(f"Изображение баннера '{name}' успешно обновлено")
+    logger.info("Изображение баннера '%s' успешно обновлено", name)
 
 
-async def orm_get_banner(session: AsyncSession, page: str) -> Banner:
+async def orm_get_banner(session: AsyncSession, page: str) -> Banner | None:
     """
     Получает баннер по названию страницы.
 
@@ -70,15 +70,15 @@ async def orm_get_banner(session: AsyncSession, page: str) -> Banner:
     Returns:
        Banner: Объект баннера
     """
-    logger.debug(f"Запрос баннера для страницы '{page}'")
+    logger.debug("Запрос баннера для страницы '%s'", page)
     query = select(Banner).where(Banner.name == page)
     result = await session.execute(query)
     banner = result.scalar()
 
     if banner:
-        logger.debug(f"Баннер '{page}' найден")
+        logger.debug("Баннер '%s' найден", page)
     else:
-        logger.debug(f"Баннер '{page}' не найден")
+        logger.debug("Баннер '%s' не найден", page)
 
     return banner
 
@@ -125,7 +125,7 @@ async def orm_create_categories(session: AsyncSession, categories: list) -> None
         session (AsyncSession): Асинхронная сессия SQLAlchemy
         categories (list[str]): Список названий категорий для создания
     """
-    logger.debug(f"Попытка создать категории: {categories}")
+    logger.debug("Попытка создать категории: %s", categories)
     query = select(Category)
     result = await session.execute(query)
     if result.first():
@@ -155,7 +155,7 @@ async def orm_add_product(session: AsyncSession, data: dict) -> None:
         )
         session.add(obj)
         await session.commit()
-        logger.info(f"Товар '{data['name']}' успешно добавлен (ID: {obj.id})")
+        logger.info("Товар '%s' успешно добавлен (ID: %d)", data["name"], obj.id)
     except (KeyError, ValueError) as exc:
         logger.exception("Ошибка добавления товара", exc_info=exc)
 
@@ -173,7 +173,7 @@ async def orm_get_products(
     Returns:
        list[Product]: Список объектов товаров или пустой список, если не найдено
     """
-    logger.debug(f"Запрос товаров категории ID: {category_id}")
+    logger.debug("Запрос товаров категории ID: %d", category_id)
     query = select(Product).where(Product.category_id == category_id)
     result = await session.execute(query)
     logger.info("Товары найдены")
@@ -191,14 +191,14 @@ async def orm_get_product(session: AsyncSession, product_id: int) -> Product | N
     Returns:
        Product | None: Объект товара либо None, если товар не найден
     """
-    logger.debug(f"Запрос товара с ID: {product_id}")
+    logger.debug("Запрос товара с ID: %d", product_id)
     query = select(Product).where(Product.id == product_id)
     result = await session.execute(query)
     product = result.scalar()
     if product:
-        logger.info(f"Товар найден - ID: {product_id}, Название: {product.name}")
+        logger.info("Товар найден - ID: %d, Название: %s", product_id, product.name)
     else:
-        logger.warning(f"Товар с ID {product_id} не найден")
+        logger.warning("Товар с ID %d не найден", product_id)
     return product
 
 
@@ -217,11 +217,11 @@ async def orm_update_product(
        ValueError: Если товар не найден или неверные данные
        KeyError: Если отсутствуют обязательные поля
     """
-    logger.info(f"Обновление товара ID: {product_id}, данные: {data}")
+    logger.info("Обновление товара ID: %d, данные: %s", product_id, data)
     try:
         product = await orm_get_product(session, product_id)
         if not product:
-            raise ValueError(f"Товар с ID {product_id} не найден")
+            raise ValueError("Товар с ID %d не найден", product_id)
         query = (
             update(Product)
             .where(Product.id == product_id)
@@ -235,7 +235,7 @@ async def orm_update_product(
         )
         await session.execute(query)
         await session.commit()
-        logger.info(f"Товар ID: {product_id} успешно обновлен")
+        logger.info("Товар ID: %d успешно обновлен", product_id)
     except (KeyError, ValueError) as exc:
         error_msg = f"Ошибка обновления товара ID {product_id}: {str(exc)}"
         logger.exception(error_msg, exc_info=exc)
@@ -252,7 +252,7 @@ async def orm_delete_product(session: AsyncSession, product_id: int) -> None:
     Raises:
        ValueError: Если товар не найден
     """
-    logger.warning(f"Запрос на удаление товара ID: {product_id}")
+    logger.warning("Запрос на удаление товара ID: %d", product_id)
     product = await orm_get_product(session, product_id)
     if not product:
         error_msg = f"Товар с ID {product_id} не найден"
@@ -262,7 +262,7 @@ async def orm_delete_product(session: AsyncSession, product_id: int) -> None:
     query = delete(Product).where(Product.id == product_id)
     await session.execute(query)
     await session.commit()
-    logger.warning(f"Товар ID: {product_id} успешно удален")
+    logger.warning("Товар ID: %d успешно удален", product_id)
 
 
 async def orm_add_user(
@@ -280,18 +280,21 @@ async def orm_add_user(
         first_name (str | None): Имя пользователя
         last_name (str | None): Фамилия пользователя
     """
-    logger.debug(f"Попытка добавить пользователя: user_id={user_id}")
+    logger.debug("Попытка добавить пользователя: user_id=%d", user_id)
     query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
     if result.first() is None:
         session.add(User(user_id=user_id, first_name=first_name, last_name=last_name))
         await session.commit()
         logger.info(
-            f"Добавлен новый пользователь: user_id={user_id}, имя={first_name} {last_name}"
+            "Добавлен новый пользователь: user_id=%d, имя=%s %s",
+            user_id,
+            first_name,
+            last_name,
         )
     else:
         logger.debug(
-            f"Пользователь user_id={user_id} уже существует, пропускаем добавление"
+            "Пользователь user_id=%d уже существует, пропускаем добавление", user_id
         )
 
 
@@ -308,7 +311,7 @@ async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int) 
         ValueError: Если пользователь или товар не существуют
     """
     logger.debug(
-        f"Добавление товара product_id={product_id} в корзину user_id={user_id}"
+        "Добавление товара product_id=%d в корзину user_id=%d", product_id, user_id
     )
     user = await session.get(User, user_id)
     product = await session.get(Product, product_id)
@@ -324,11 +327,13 @@ async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int) 
         raise ValueError(error_msg)
 
     query = select(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id)
-    cart = await session.execute(query)
-    cart = cart.scalar()
+    result = await session.execute(query)
+    cart = cast(Optional[Cart], result.scalar())
     if cart:
         logger.info(
-            f"Увеличено количество товара product_id={product_id} в корзине user_id={user_id}"
+            "Увеличено количество товара product_id=%d в корзине user_id=%d",
+            product_id,
+            user_id,
         )
         cart.quantity += 1
         await session.commit()
@@ -336,7 +341,9 @@ async def orm_add_to_cart(session: AsyncSession, user_id: int, product_id: int) 
         session.add(Cart(user_id=user_id, product_id=product_id, quantity=1))
         await session.commit()
         logger.info(
-            f"Добавлен новый товар product_id={product_id} в корзину user_id={user_id}"
+            "Добавлен новый товар product_id=%d в корзину user_id=%d",
+            product_id,
+            user_id,
         )
 
 
@@ -354,7 +361,7 @@ async def orm_get_user_carts(session: AsyncSession, user_id: int) -> Sequence[Ca
     Raises:
        ValueError: Если пользователь с указанным ID не существует
     """
-    logger.debug(f"Запрос содержимого корзины для пользователя user_id={user_id}")
+    logger.debug("Запрос содержимого корзины для пользователя user_id=%d", user_id)
     user_exists = await session.get(User, user_id)
 
     if not user_exists:
@@ -368,7 +375,7 @@ async def orm_get_user_carts(session: AsyncSession, user_id: int) -> Sequence[Ca
             .options(joinedload(Cart.product))
         )
         result = await session.execute(query)
-        logger.info(f"Найдены товары в корзине пользователя user_id={user_id}")
+        logger.info("Найдены товары в корзине пользователя user_id=%d", user_id)
         return result.scalars().all()
     except Exception as exc:
         error_msg = (
@@ -402,7 +409,7 @@ async def orm_delete_from_cart(
     await session.execute(query)
     await session.commit()
     logger.info(
-        f"Товар product_id={product_id} успешно удален из корзины user_id={user_id}"
+        "Товар product_id=%d успешно удален из корзины user_id=%d", product_id, user_id
     )
 
 
@@ -423,35 +430,41 @@ async def orm_reduce_product_in_cart(
           - False: если товар удален из корзины
     """
     logger.info(
-        f"Уменьшение количества товара product_id={product_id} в корзине user_id={user_id}"
+        "Уменьшение количества товара product_id=%D в корзине user_id=%d",
+        product_id,
+        user_id,
     )
     query = select(Cart).where(Cart.user_id == user_id, Cart.product_id == product_id)
-    cart = await session.execute(query)
-    cart = cart.scalar()
+    result = await session.execute(query)
+    cart = cast(Optional[Cart], result.scalar())
 
     if not cart:
         logger.debug(
-            f"Товар product_id={product_id} не найден в корзине user_id={user_id}"
+            "Товар product_id=%d не найден в корзине user_id=%d", product_id, user_id
         )
         return None
     if cart.quantity > 1:
         cart.quantity -= 1
         await session.commit()
         logger.info(
-            f"Уменьшено количество товара product_id={product_id} в корзине user_id={user_id}."
-            f"Новое количество: {cart.quantity}"
+            "Уменьшено количество товара product_id=%d в корзине user_id=%d. Новое количество: %d",
+            product_id,
+            user_id,
+            cart.quantity,
         )
         return True
     else:
         await orm_delete_from_cart(session, user_id, product_id)
         await session.commit()
         logger.info(
-            f"Удаление товара product_id={product_id}из корзины user_id={user_id}"
+            "Удаление товара product_id=%d из корзины user_id=%d", product_id, user_id
         )
         return False
 
 
-async def orm_get_cart(session: AsyncSession, user_id: int, product_id: int) -> Cart:
+async def orm_get_cart(
+    session: AsyncSession, user_id: int, product_id: int
+) -> Optional[Cart]:
     """
     Получает запись о товаре в корзине пользователя.
 
@@ -464,12 +477,14 @@ async def orm_get_cart(session: AsyncSession, user_id: int, product_id: int) -> 
         Cart: Объект Cart
     """
     logger.debug(
-        f"Запрос товара product_id={product_id} в корзине пользователя user_id={user_id}"
+        "Запрос товара product_id=%d в корзине пользователя user_id=%d",
+        product_id,
+        user_id,
     )
     query = select(Cart).filter(Cart.user_id == user_id, Cart.product_id == product_id)
-    cart = await session.execute(query)
-    logger.debug(f"Найден товар product_id={product_id} в корзине user_id={user_id}")
-    return cart.scalar()
+    result = await session.execute(query)
+    logger.debug("Найден товар product_id=%d в корзине user_id=%d", product_id, user_id)
+    return cast(Optional[Cart], result.scalar())
 
 
 async def orm_create_order(user_id: int, data: dict, session: AsyncSession) -> None:
@@ -484,18 +499,18 @@ async def orm_create_order(user_id: int, data: dict, session: AsyncSession) -> N
     Raises:
         ValueError: Если товар или корзина не найдены
     """
-    logger.info(f"Создание заказа для user_id={user_id}")
-    logger.debug(f"Поиск товара product_id={data['product_id']} в корзине")
+    logger.info("Создание заказа для user_id=%d", user_id)
+    logger.debug("Поиск товара product_id=%d в корзине", data["product_id"])
     cart = await orm_get_cart(session, user_id, data["product_id"])
     if not cart:
-        error_msg = f"Товар product_id={data['product_id']} не найден в корзине"
+        error_msg = "Товар product_id=%d не найден в корзине" % data["product_id"]
         logger.error(error_msg)
         raise ValueError(error_msg)
-    logger.debug(f"Получение информации о товаре product_id={data['product_id']}")
+    logger.debug("Получение информации о товаре product_id=%d", data["product_id"])
 
     product = await orm_get_product(session, data["product_id"])
     if not product:
-        error_msg = f"Товар product_id={data['product_id']} не найден"
+        error_msg = "Товар product_id=%d не найден" % data["product_id"]
         logger.error(error_msg)
         raise ValueError(error_msg)
 
@@ -511,7 +526,7 @@ async def orm_create_order(user_id: int, data: dict, session: AsyncSession) -> N
     session.add(order)
 
     await session.commit()
-    logger.info(f"Заказ #{order.id} успешно создан")
+    logger.info("Заказ #%d успешно создан", order.id)
 
     try:
         await bot.send_message(
@@ -524,11 +539,16 @@ async def orm_create_order(user_id: int, data: dict, session: AsyncSession) -> N
                     🕒 Время: {order.created}""",
             parse_mode="HTML",
         )
-        logger.info(f"Уведомление о заказе #{order.id} отправлено админу {1677148093}")
+        logger.info(
+            "Уведомление о заказе #%d отправлено админу %d", order.id, 1677148093
+        )
     except Exception as exc:
         logger.exception(
-            f"Ошибка отправки уведомления админу {1677148093}", exc_info=exc
+            "Ошибка отправки уведомления админу %d",
+            1677148093,
+            exc_info=exc,
         )
+        raise
 
 
 async def orm_get_orders(session: AsyncSession, user_id: int) -> Sequence[Order]:
@@ -542,15 +562,15 @@ async def orm_get_orders(session: AsyncSession, user_id: int) -> Sequence[Order]
     Returns:
        Sequence[Order]: Список заказов пользователя или пустой список
     """
-    logger.info(f"Запрос заказов для пользователя user_id={user_id}")
+    logger.info("Запрос заказов для пользователя user_id=%d", user_id)
     try:
         query = select(Order).where(Order.user_id == user_id)
         result = await session.execute(query)
-        logger.debug(f"Заказы для user_id={user_id} найдены")
+        logger.debug("Заказы для user_id=%d найдены", user_id)
         return result.scalars().all()
     except Exception as exc:
         logger.exception(
-            f"Ошибка получения заказов для user_id={user_id}", exc_info=exc
+            "Ошибка получения заказов для user_id=%d", user_id, exc_info=exc
         )
         raise
 
@@ -569,10 +589,10 @@ async def get_order_by_order_id(order_id: int, session: AsyncSession) -> Order |
     order = await session.get(Order, order_id)
     try:
         if not order:
-            logger.warning(f"Заказ order_id={order_id} не найден")
+            logger.warning("Заказ order_id=%d не найден", order_id)
         return order
     except Exception as exc:
-        logger.exception(f"Ошибка получения заказа order_id={order_id}", exc_info=exc)
+        logger.exception("Ошибка получения заказа order_id=%s", order_id, exc_info=exc)
         raise
 
 
@@ -590,10 +610,10 @@ async def get_all_orders(session: AsyncSession) -> Sequence[Order]:
     try:
         query = select(Order)
         result = await session.execute(query)
-        logger.debug(f"Все заказы найдены")
+        logger.debug("Все заказы найдены")
         return result.scalars().all()
     except Exception as exc:
-        logger.exception(f"Ошибка получения всех заказов", exc_info=exc)
+        logger.exception("Ошибка получения всех заказов", exc_info=exc)
         raise
 
 
@@ -605,14 +625,14 @@ async def delete_order(session: AsyncSession, order_id: int) -> None:
         session (AsyncSession): Асинхронная сессия SQLAlchemy
         order_id (int): ID заказа для удаления
     """
-    logger.warning(f"Запрос на удаление заказа order_id={order_id}")
+    logger.warning("Запрос на удаление заказа order_id=%d", order_id)
     order = await get_order_by_order_id(order_id, session)
     if not order:
-        logger.warning(f"Заказ order_id={order_id} не найден, удаление невозможно")
+        logger.warning("Заказ order_id=%d не найден, удаление невозможно", order_id)
         return
     await session.delete(order)
     await session.commit()
-    logger.info(f"Заказ order_id={order_id} успешно удален")
+    logger.info("Заказ order_id=%d успешно удален", order_id)
 
 
 async def change_order(session: AsyncSession, order_id: int) -> None:
@@ -626,15 +646,15 @@ async def change_order(session: AsyncSession, order_id: int) -> None:
     Raises:
         ValueError: Если заказ не найден
     """
-    logger.info(f"Изменение статуса заказа order_id={order_id} на 'Оплачен'")
+    logger.info("Изменение статуса заказа order_id=%d на 'Оплачен'", order_id)
     order = await get_order_by_order_id(order_id, session)
     if not order:
-        error_msg = f"Заказ order_id={order_id} не найден"
+        error_msg = "Заказ order_id=%s не найден" % order_id
         logger.error(error_msg)
         raise ValueError(error_msg)
     order.paid = True
     await session.commit()
-    logger.info(f"Статус заказа order_id={order_id} успешно изменен на 'Оплачен'")
+    logger.info("Статус заказа order_id=%d успешно изменен на 'Оплачен'", order_id)
 
 
 async def orm_get_total_price(session: AsyncSession, order_id: int) -> float:
@@ -651,10 +671,10 @@ async def orm_get_total_price(session: AsyncSession, order_id: int) -> float:
     Raises:
         ValueError: Если заказ не найден
     """
-    logger.debug(f"Запрос суммы заказа order_id={order_id}")
+    logger.debug("Запрос суммы заказа order_id=%d", order_id)
     order = await get_order_by_order_id(order_id, session)
     if not order:
-        error_msg = f"Заказ order_id={order_id} не найден"
+        error_msg = "Заказ order_id=%d не найден" % order_id
         logger.error(error_msg)
         raise ValueError(error_msg)
 

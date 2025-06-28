@@ -1,6 +1,6 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, cast
 
-from aiogram.types import InputMediaPhoto, LabeledPrice
+from aiogram.types import InputMediaPhoto
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
@@ -24,7 +24,6 @@ from kbds.inline.user.inline import (
     get_user_orders,
 )
 from logger.logger_helper import get_logger
-from payments.ukassa import create_payment
 from utils.paginator import Paginator
 
 logger = get_logger("logger.user_menu_processing")
@@ -45,7 +44,7 @@ async def main_menu(
         Tuple[InputMediaPhoto, Any]: Медиа-объект с баннером и клавиатура
     """
     banner = await orm_get_banner(session, menu_name)
-    logger.info(f"Баннер '{menu_name}' успешно загружен")
+    logger.info("Баннер '%s' успешно загружен", menu_name)
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
 
     kbds = get_user_main_btns(level=level)
@@ -68,14 +67,14 @@ async def catalog(
     Returns:
         Tuple[InputMediaPhoto, Any]: Медиа-объект с баннером и клавиатура с категориями
     """
-    logger.debug(f"Получение каталога. Уровень: {level}, Меню: '{menu_name}'")
+    logger.debug("Получение каталога. Уровень: %d, Меню: '%s'", level, menu_name)
     banner = await orm_get_banner(session, menu_name)
-    logger.info(f"Баннер каталога '{menu_name}' успешно загружен")
+    logger.info("Баннер каталога '%s' успешно загружен", menu_name)
     image = InputMediaPhoto(media=banner.image, caption=banner.description)
 
     categories = await orm_get_categories(session)
     kbds = get_user_catalog_btns(level=level, categories=categories)
-    logger.debug(f"Получен каталог с категориями")
+    logger.debug("Получен каталог с категориями")
 
     return image, kbds
 
@@ -115,14 +114,14 @@ async def products(
     Returns:
         Tuple[InputMediaPhoto, Any]: Медиа-объект с фото товара и клавиатура
     """
-    logger.info(f"Формирование страницы товара, Страница: {page}, Уровень: {level}")
+    logger.info("Формирование страницы товара, Страница: %d, Уровень: %d", page, level)
 
-    logger.debug(f"Запрос товаров категории {category}")
+    logger.debug("Запрос товаров категории %d", category)
     products = await orm_get_products(session, category_id=category)
 
     paginator = Paginator(products, page=page)
     product = paginator.get_page()[0]
-    logger.debug(f"Пагинация: страница {paginator.page} из {paginator.len}")
+    logger.debug("Пагинация: страница %d из %d", paginator.page, paginator.len)
 
     image = InputMediaPhoto(
         media=product.image,
@@ -130,7 +129,7 @@ async def products(
                 </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n\
                 <strong>Товар {paginator.page} из {paginator.len}</strong>",
     )
-    logger.debug(f"Карточка товара ID: {product.id}")
+    logger.debug("Карточка товара ID: %d", product.id)
     pagination_btns = pages(paginator)
 
     kbds = get_products_btns(
@@ -168,28 +167,37 @@ async def carts(
         Tuple[InputMediaPhoto, Any]: Медиа-объект с фото товара и клавиатура
     """
     logger.info(
-        f"Обработка корзины. User: {user_id},"
-        f"Операция: {menu_name}, Товар: {product_id}, Страница: {page}"
+        "Обработка корзины. User: %d, Операция: %s, Товар: %d, Страница: %d",
+        user_id,
+        menu_name,
+        product_id,
+        page,
     )
     if menu_name == "delete":
-        logger.debug(f"Удаление товара {product_id} из корзины пользователя {user_id}")
+        logger.debug(
+            "Удаление товара %d из корзины пользователя %d", product_id, user_id
+        )
         await orm_delete_from_cart(session, user_id, product_id)
         if page > 1:
             page -= 1
-            logger.debug(f"Уменьшение номера страницы до {page} после удаления")
+            logger.debug("Уменьшение номера страницы до %d после удаления", page)
     elif menu_name == "decrement":
         logger.debug(
-            f"Уменьшение количества товара {product_id} в корзине пользователя {user_id}"
+            "Уменьшение количества товара %d в корзине пользователя %d",
+            product_id,
+            user_id,
         )
         is_cart = await orm_reduce_product_in_cart(session, user_id, product_id)
         if page > 1 and not is_cart:
             page -= 1
             logger.debug(
-                f"Уменьшение номера страницы до {page} после уменьшения количества"
+                "Уменьшение номера страницы до %d после уменьшения количества", page
             )
     elif menu_name == "increment":
         logger.debug(
-            f"Увеличение количества товара {product_id} в корзине пользователя {user_id}"
+            "Увеличение количества товара %d в корзине пользователя %d",
+            product_id,
+            user_id,
         )
         await orm_add_to_cart(session, user_id, product_id)
 
@@ -220,9 +228,11 @@ async def carts(
         )
 
         logger.debug(
-            f"Формирование страницы корзины. Товар: {cart.product.name},"
-            f"Количество: {cart.quantity}, Цена: {cart_price},"
-            f"Общая стоимость: {total_price}"
+            "Формирование страницы корзины. Товар: %s, Количество: %d, Цена: %d, Общая стоимость: %d",
+            cart.product.name,
+            cart.quantity,
+            cart_price,
+            total_price,
         )
         image = InputMediaPhoto(
             media=cart.product.image,
@@ -256,9 +266,9 @@ async def order(
     Returns:
         Tuple[InputMediaPhoto, Any]: Медиа-объект с баннером главного меню и клавиатура
     """
-    logger.info(f"Начало cозданя заказа для пользователя {user_id}")
+    logger.info("Начало cозданя заказа для пользователя %d", user_id)
     await orm_create_order(user_id, data, session)
-    logger.info(f"Заказ для пользователя {user_id} создан")
+    logger.info("Заказ для пользователя %d создан", user_id)
 
     banner = await orm_get_banner(session, "main")
     logger.debug("Баннер главного меню загружен")
@@ -266,7 +276,7 @@ async def order(
 
     kbds = get_user_main_btns(level=0)
     logger.info(
-        f"Пользователь {user_id} возвращен в главное меню после создания заказа"
+        "Пользователь %d возвращен в главное меню после создания заказа", user_id
     )
 
     return image, kbds
@@ -289,9 +299,9 @@ async def my_orders(
 
     """
 
-    logger.info(f"Запрос заказов пользователя {user_id}. Страница {page}")
+    logger.info("Запрос заказов пользователя %d. Страница %d", user_id, page)
 
-    logger.debug(f"Получение заказов для пользователя {user_id}")
+    logger.debug("Получение заказов для пользователя %d", user_id)
     my_orders = await orm_get_orders(session, user_id)
 
     if not my_orders:
@@ -310,7 +320,7 @@ async def my_orders(
         order = paginator.get_page()[0]
         product = await orm_get_product(session, order.product_id)
 
-        logger.debug(f"Отображение заказа ID: {order.id}.Товар: {product.name}")
+        logger.debug("Отображение заказа ID: %d.Товар: %s", order.id, product.name)
         image = InputMediaPhoto(
             media=product.image,
             caption=f"<strong>{product.name}</strong>\n{product.description}"
@@ -343,7 +353,7 @@ async def delete_order_user(
         user_id (int): ID пользователя, чей заказ удаляется
     """
     await delete_order(session, order_id)
-    logger.info(f"Заказ {order_id} успешно удален")
+    logger.info("Заказ %d успешно удален", order_id)
 
     image, kbds = await my_orders(session, level, page, user_id)
     logger.info("Успешно возвращен обновленный список заказов")
@@ -380,21 +390,30 @@ async def get_menu_content(
         Tuple[InputMediaPhoto, Any] | None: Контент меню или None если уровень неизвестен
     """
     logger.info(
-        f"Запрос контента меню пользователя. Уровень: {level} OrderID: {order_id}"
+        "Запрос контента меню пользователя. Уровень: %d OrderID: %d", level, order_id
     )
     if level == 0:
         return await main_menu(session, level, menu_name)
     elif level == 1:
         return await catalog(session, level, menu_name)
     elif level == 2:
-        return await products(session, level, category, page)
+        return await products(session, level, cast(int, category), cast(int, page))
     elif level == 3:
-        return await carts(session, level, menu_name, page, user_id, product_id)
+        return await carts(
+            session,
+            level,
+            menu_name,
+            cast(int, page),
+            cast(int, user_id),
+            cast(int, product_id),
+        )
     elif level == 4:
-        return await order(session, user_id, data)
+        return await order(session, cast(int, user_id), cast(dict, data))
     elif level == 5:
-        return await my_orders(session, level, page, user_id)
+        return await my_orders(session, level, cast(int, page), cast(int, user_id))
     elif level == 7:
-        return await delete_order_user(session, order_id, level, page, user_id)
+        return await delete_order_user(
+            session, cast(int, order_id), level, cast(int, page), cast(int, user_id)
+        )
     else:
         return None
