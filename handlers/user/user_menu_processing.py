@@ -389,9 +389,7 @@ async def get_menu_content(
     Returns:
         Tuple[InputMediaPhoto, Any] | None: Контент меню или None если уровень неизвестен
     """
-    logger.info(
-        "Запрос контента меню пользователя. Уровень: %d", level
-    )
+    logger.info("Запрос контента меню пользователя. Уровень: %d", level)
     if level == 0:
         return await main_menu(session, level, menu_name)
     elif level == 1:

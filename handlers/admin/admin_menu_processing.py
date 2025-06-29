@@ -223,9 +223,7 @@ async def get_admin_menu_content(
             - InputMediaPhoto: медиа-контент баннера
             - Any: соответствующая клавиатура
     """
-    logger.info(
-        "Запрос контента админ-меню"
-    )
+    logger.info("Запрос контента админ-меню")
     if action == "main":
         return cast(Tuple[InputMediaPhoto, Any], await main(session))
     elif action == "list_orders":
