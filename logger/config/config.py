@@ -40,7 +40,7 @@ class LevelFileHandler(logging.Handler):
 
 dict_config = {
     "version": 1,
-    "disable_existing_logger": False,
+    "disable_existing_loggers": False,
     "formatters": {
         "base": {
             "format": "%(levelname)s | %(name)s | %(asctime)s | %(lineno)s | %(message)s"

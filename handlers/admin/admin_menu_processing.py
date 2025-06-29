@@ -19,7 +19,7 @@ from kbds.inline.admin.inline_admin import (
 )
 from logger.logger_helper import get_logger
 
-logger = get_logger("loger.admin_menu_processing")
+logger = get_logger("logger.admin_menu_processing")
 
 
 async def main(session: AsyncSession) -> Tuple[InputMediaPhoto | None, Any]:
@@ -224,10 +224,7 @@ async def get_admin_menu_content(
             - Any: соответствующая клавиатура
     """
     logger.info(
-        "Запрос контента админ-меню. Действие: %s OrderID: %d, Статус: %s",
-        action,
-        order_id,
-        status,
+        "Запрос контента админ-меню"
     )
     if action == "main":
         return cast(Tuple[InputMediaPhoto, Any], await main(session))
