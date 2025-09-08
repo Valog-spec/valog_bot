@@ -35,6 +35,7 @@ class AdminAction(CallbackData, prefix="admin"):
     """
 
     action: str
+    user_id: Optional[int] = None
 
 
 def get_admin_keyboard() -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
@@ -66,6 +67,12 @@ def get_admin_keyboard() -> InlineKeyboardMarkup | ReplyKeyboardMarkup:
         InlineKeyboardButton(
             text="Добавить/Изменить баннер",
             callback_data=AdminAction(action="banner").pack(),
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text="Вопросы пользователей",
+            callback_data=AdminAction(action="support").pack(),
         )
     )
 
@@ -206,3 +213,51 @@ def get_confirm_delete_keyboard(
         )
     )
     return keyboard.adjust(2).as_markup()
+
+
+def get_support_keyboard(users):
+    keyboard = InlineKeyboardBuilder()
+    for i in users:
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"Вопросы пользователя {i}",
+                callback_data=AdminAction(action="view_questions", user_id=i).pack(),
+            )
+        )
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🔙 Назад", callback_data=AdminAction(action="main").pack()
+        )
+    )
+
+    return keyboard.adjust(1, 1).as_markup()
+
+
+def get_support_keyboard_by_user_support(user_support):
+    keyboard = InlineKeyboardBuilder()
+    for i in user_support:
+        print(i.content)
+        keyboard.add(
+            InlineKeyboardButton(
+                text=f"Вопрос пользователя: {i.content}\nНомер пользователя: {i.phone}",
+                callback_data=AdminAction(
+                    action="view_questions", user_id=i.user_id
+                ).pack(),
+            )
+        )
+
+    keyboard.add(
+        InlineKeyboardButton(
+            text="🔙 Назад", callback_data=AdminAction(action="main").pack()
+        )
+    )
+    keyboard.add(
+        InlineKeyboardButton(
+            text="Удалить",
+            callback_data=AdminAction(
+                action="view_questions", user_id=i.user_id
+            ).pack(),
+        )
+    )
+
+    return keyboard.adjust(1, 2).as_markup()

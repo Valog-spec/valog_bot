@@ -1,23 +1,26 @@
-from typing import Any, Tuple, cast
+from typing import Any, Coroutine, Tuple, cast
 
-from aiogram.types import InputMediaPhoto
+from aiogram.types import InlineKeyboardMarkup, InputMediaPhoto, ReplyKeyboardMarkup
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Banner, Order
-from database.orm_query import (
+from src.database.models import Banner, Order, Support
+from src.database.orm_query import (
     delete_order,
     get_all_orders,
     get_order_by_order_id,
     orm_get_banner,
 )
-from kbds.inline.admin.inline_admin import (
+from src.kbds.inline.admin.inline_admin import (
     get_admin_keyboard,
     get_confirm_delete_keyboard,
     get_order_actions_keyboard,
     get_orders_keyboard,
     get_statuses_keyboard,
+    get_support_keyboard,
+    get_support_keyboard_by_user_support,
 )
-from logger.logger_helper import get_logger
+from src.logger.logger_helper import get_logger
 
 logger = get_logger("logger.admin_menu_processing")
 
@@ -203,12 +206,42 @@ async def confirm_delete(
     return image, kbds
 
 
+async def check_questions(session: AsyncSession):
+    query = select(Support.user_id).distinct()
+    result = await session.execute(query)
+    user_ids = result.scalars().all()
+    banner = cast(Banner, await orm_get_banner(session, "support"))
+
+    image = InputMediaPhoto(media=banner.image, caption=banner.description)
+    kbds = get_support_keyboard(user_ids)
+
+    return image, kbds
+
+
+async def check_questions_user(session: AsyncSession, user_id):
+    banner = cast(Banner, await orm_get_banner(session, "support"))
+    query = select(Support).where(Support.user_id == user_id)
+    result = await session.execute(query)
+    user_supports = result.scalars().all()
+    image = InputMediaPhoto(media=banner.image, caption="Вопрос пользователя")
+    kbds = get_support_keyboard_by_user_support(user_supports)
+
+    return image, kbds
+
+
 async def get_admin_menu_content(
     session: AsyncSession,
     action: str | None = None,
     order_id: int | None = None,
+    user_id: int | None = None,
     status: str | None = None,
-) -> tuple[InputMediaPhoto | None, Any] | None:
+) -> (
+    tuple[InputMediaPhoto, Any]
+    | Coroutine[
+        Any, Any, tuple[InputMediaPhoto, InlineKeyboardMarkup | ReplyKeyboardMarkup]
+    ]
+    | None
+):
     """
     Роутер для получения контента
 
@@ -236,5 +269,9 @@ async def get_admin_menu_content(
         return cast(Tuple[InputMediaPhoto, Any], await order_delete(session, order_id))  # type: ignore[arg-type]
     elif action == "confirm_delete":
         return cast(Tuple[InputMediaPhoto, Any], await confirm_delete(session, order_id))  # type: ignore[arg-type]
+    elif action == "support":
+        return await check_questions(session)
+    elif action == "view_questions":
+        return await check_questions_user(session, user_id)
     else:
         return None

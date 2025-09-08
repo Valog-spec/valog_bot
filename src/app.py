@@ -3,13 +3,13 @@ import asyncio
 from aiogram import Dispatcher
 from dotenv import find_dotenv, load_dotenv
 
-from bot_instance import bot
-from database.engine import create_db, session_maker
-from handlers.admin.admin_private import admin_router
-from handlers.group.user_group import user_group_router
-from handlers.user.user_private import user_private_router
-from logger.logger_helper import get_logger
-from middlewares.db import DataBaseSession
+from src.bot_instance import bot
+from src.database.engine import create_db, session_maker
+from src.handlers.admin.admin_private import admin_router
+from src.handlers.group.user_group import user_group_router
+from src.handlers.user.user_private import user_private_router
+from src.logger.logger_helper import get_logger
+from src.middlewares.db import DataBaseSession
 
 load_dotenv(find_dotenv())
 

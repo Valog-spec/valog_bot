@@ -7,8 +7,8 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InaccessibleMessage, InputMediaPhoto, PhotoSize
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import Product
-from database.orm_query import (
+from src.database.models import Product
+from src.database.orm_query import (
     orm_add_product,
     orm_change_banner_image,
     orm_delete_product,
@@ -18,15 +18,15 @@ from database.orm_query import (
     orm_get_products,
     orm_update_product,
 )
-from filters.chat_types import ChatTypeFilter, IsAdmin
-from handlers.admin.admin_menu_processing import get_admin_menu_content
-from kbds.inline.admin.inline_admin import (
+from src.filters.chat_types import ChatTypeFilter, IsAdmin
+from src.handlers.admin.admin_menu_processing import get_admin_menu_content
+from src.kbds.inline.admin.inline_admin import (
     AdminAction,
     OrderCallback,
     get_admin_keyboard,
 )
-from kbds.inline.user.inline import get_callback_btns
-from logger.logger_helper import get_logger
+from src.kbds.inline.user.inline import get_callback_btns
+from src.logger.logger_helper import get_logger
 
 logger = get_logger("logger.admin_private")
 
@@ -35,7 +35,7 @@ admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 
 
 @admin_router.message(Command("admin"))
-async def start(message: types.Message, session: AsyncSession) -> None:
+async def start(message: types.Message, session: AsyncSession):
     """
     Обработчик команды /admin для отображения меню админа
 
@@ -103,8 +103,7 @@ async def list_orders(
         callback_data.action,
     )
     media, reply_markup = await get_admin_menu_content(
-        session,
-        action=callback_data.action,
+        session, action=callback_data.action, user_id=callback_data.user_id
     )
 
     await callback.message.edit_media(
@@ -191,7 +190,7 @@ async def starring_at_product(
         callback.data,
     )
     category_id = callback.data.split("_")[-1]
-    logger.debug("Извлечен ID категории: %d", category_id)
+    logger.debug("Извлечен ID категории: %d", int(category_id))
     for product in await orm_get_products(session, int(category_id)):
         logger.debug("Отправка товара ID %d. Название: %s", product.id, product.name)
         await callback.message.answer_photo(
@@ -210,7 +209,7 @@ async def starring_at_product(
     await callback.message.answer("ОК, вот список товаров ⏫")
     logger.info(
         "Завершена обработка категории %d для админа %d",
-        category_id,
+        int(category_id),
         callback.from_user.id,
     )
 
@@ -233,10 +232,12 @@ async def delete_product_callback(
     )
     product_id = callback.data.split("_")[-1]
 
-    logger.debug("Извлечен ID товара для удаления: %d", product_id)
+    logger.debug("Извлечен ID товара для удаления: %d", int(product_id))
     await orm_delete_product(session, int(product_id))
     logger.info(
-        "Товар %d успешно удален из БД. Удалил: %d", product_id, callback.from_user.id
+        "Товар %d успешно удален из БД. Удалил: %d",
+        int(product_id),
+        callback.from_user.id,
     )
 
     await callback.answer("Товар удален")
@@ -342,9 +343,9 @@ async def change_product_callback(
         session (AsyncSession): Асинхронная сессия для работы с БД
     """
     logger.info("Получен запрос на изменение товара. Callback data: %s", callback.data)
-    product_id = callback.data.split("_")[-1]
+    product_id = int(callback.data.split("_")[-1])
 
-    product_for_change = await orm_get_product(session, int(product_id))
+    product_for_change = await orm_get_product(session, product_id)
     logger.info("Товар для изменения получен из БД. ID: %d", product_id)
 
     AddProduct.product_for_change = product_for_change

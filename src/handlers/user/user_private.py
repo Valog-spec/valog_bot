@@ -8,18 +8,19 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import LabeledPrice, PreCheckoutQuery, ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import (
+from src.database.orm_query import (
     change_order,
     orm_add_to_cart,
     orm_add_user,
+    orm_delete_from_cart,
     orm_get_total_price,
 )
-from filters.chat_types import ChatTypeFilter
-from handlers.user.user_menu_processing import get_menu_content
-from kbds.inline.user.inline import MenuCallBack
-from kbds.reply.reply import contact, get_keyboard
-from logger.logger_helper import get_logger
-from payments.ukassa import create_payment
+from src.filters.chat_types import ChatTypeFilter
+from src.handlers.user.user_menu_processing import get_menu_content
+from src.kbds.inline.user.inline import MenuCallBack
+from src.kbds.reply.reply import contact, get_keyboard
+from src.logger.logger_helper import get_logger
+from src.payments.ukassa import create_payment
 
 logger = get_logger("logger.user_private")
 user_private_router = Router()
@@ -92,6 +93,18 @@ class AddOrder(StatesGroup):
     }
 
 
+class MessageForSupport(StatesGroup):
+    """
+    Группа состояний для написания сообщения в поддержку
+
+    Атрибуты:
+        texts (dict): Сообщения для повторного ввода при ошибках валидации.
+    """
+
+    content = State()
+    phone = State()
+
+
 @user_private_router.callback_query(StateFilter(None), MenuCallBack.filter())
 async def user_menu(
     callback: types.CallbackQuery,
@@ -127,7 +140,7 @@ async def user_menu(
         payment = await create_payment(
             amount=price, description=f"Оплата заказа #{callback_data.order_id}"
         )
-        logger.info("Создана платежная сессия: %d", payment.id)
+        logger.info("Создана платежная сессия: %s", payment.id)
 
         await callback.message.answer_invoice(
             title="Тестовый платеж",
@@ -138,6 +151,13 @@ async def user_menu(
             payload=f"order_{callback_data.order_id}",
             start_parameter=payment.id,
         )
+        return
+    elif callback_data.menu_name == "support":
+        logger.info("Начало отправления сообщения в поддержку")
+        await callback.message.answer("Введите вопрос: ")
+        # await state.update_data(product_id=callback_data.product_id)
+        await state.set_state(MessageForSupport.content)
+        await callback.answer()
         return
 
     media, reply_markup = await get_menu_content(
@@ -187,7 +207,7 @@ async def process_successful_payment(
         session (AsyncSession): Асинхронная сессия БД
     """
     payment = message.successful_payment
-    order_id = payment.invoice_payload.split("_")[1]
+    order_id = int(payment.invoice_payload.split("_")[1])
     logger.debug("Обработка заказа %d", order_id)
     await change_order(session, int(order_id))
     logger.info("Статус заказа %d обновлен на 'оплачен'", order_id)
@@ -324,7 +344,7 @@ async def phone_process(
     """
     if message.contact:
         logger.info(
-            "Пользователь %d отправил контакт: %d",
+            "Пользователь %d отправил контакт: %s",
             message.from_user.id,
             message.contact.phone_number,
         )
@@ -348,6 +368,7 @@ async def phone_process(
         message.from_user.id,
         data,
     )
+    await orm_delete_from_cart(session, message.from_user.id, data["product_id"])
     await state.clear()
 
 
@@ -362,3 +383,59 @@ async def phone_process_2(message: types.Message) -> None:
     await message.answer(
         "Отпроавьте номер телефона, либо введите его вручную", reply_markup=contact_btn
     )
+
+
+@user_private_router.message(MessageForSupport.content, F.text)
+async def fio_process_for_support(message: types.Message, state: FSMContext) -> None:
+    """
+    Обрабатывает ввод при отправке сообщения в поддержку
+    """
+    logger.info("Пользователь ввел сообщения для поддержки")
+    await state.update_data(сontent=message.text)
+    await message.answer("Отправить номер телефона", reply_markup=contact())
+    await state.set_state(MessageForSupport.phone)
+
+
+# @user_private_router.message(MessageForSupport.content, F.text)
+# async def content_for_support(message: types.Message, state: FSMContext) -> None:
+#     """
+#     Обрабатывает ввод cообщения от пользователя для поддержки
+#     """
+#     logger.info("Пользователь ввел сообщения для поддержки")
+#     await state.update_data(сontent=message.text)
+#     await message.answer("Отпроавить номер телефона", reply_markup=contact())
+#     await state.set_state(MessageForSupport.phone)
+
+
+# @user_private_router.message(MessageForSupport.phone, or_f(F.contact, F.text))
+# async def phone_process(
+#     message: types.Message, state: FSMContext, session: AsyncSession
+# ) -> None:
+#     """
+#     Завершает отправку сообщения поддержке после получения телефона
+#     """
+#     if message.contact:
+#         logger.info(
+#             "Пользователь %d отправил контакт: %s",
+#             message.from_user.id,
+#             message.contact.phone_number,
+#         )
+#         await state.update_data(phone=message.contact.phone_number)
+#     else:
+#         logger.info(
+#             "Пользователь %d ввел телефон вручную: %s",
+#             message.from_user.id,
+#             message.text,
+#         )
+#         await state.update_data(phone=message.text)
+#         await message.answer(text="Номер записан!", reply_markup=ReplyKeyboardRemove())
+#     data = await state.get_data()
+#     media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
+#
+#     await message.answer("Сообщение отправлено", reply_markup=reply_markup)
+#     logger.info(
+#         "Завершение оформления отправки сообщения для поддержки %d.",
+#         message.from_user.id,
+#     )
+#     await orm_add_message_in_support(session, data, message.from_user.id)
+#     await state.clear()

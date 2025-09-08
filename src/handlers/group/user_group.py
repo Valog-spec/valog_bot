@@ -1,8 +1,8 @@
 from aiogram import Bot, Router, types
 from aiogram.filters import Command
 
-from filters.chat_types import ChatTypeFilter
-from logger.logger_helper import get_logger
+from src.filters.chat_types import ChatTypeFilter
+from src.logger.logger_helper import get_logger
 
 user_group_router = Router()
 user_group_router.message.filter(ChatTypeFilter(["group", "supergroup"]))

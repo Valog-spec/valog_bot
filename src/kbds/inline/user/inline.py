@@ -45,12 +45,13 @@ def get_user_main_btns(
     """
     keyboard = InlineKeyboardBuilder()
     btns = {
-        "Товары 🍕": "catalog",
+        "Товары 🍔": "catalog",
         "Корзина 🛒": "cart",
         "О нас ℹ️": "about",
-        "Оплата 💰": "payment",
+        # "Оплата 💰": "payment",
         "Доставка ⛵": "shipping",
         "Мои заказы": "orders",
+        "Написать в поддержку": "support",
     }
     for text, menu_name in btns.items():
         if menu_name == "catalog":
@@ -279,6 +280,12 @@ def get_user_cart(
                 )
 
         keyboard.row(*row)
+
+        # add_carts = InlineKeyboardButton(
+        #     text="Добавить в заказ",
+        #     callback_data=MenuCallBack(level=level, menu_name="cart").pack()
+        # )
+        # keyboard.row(add_carts)
 
         row2 = [
             InlineKeyboardButton(

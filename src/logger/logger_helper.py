@@ -1,7 +1,7 @@
 import logging.config
 from logging import Logger
 
-from logger.config.config import dict_config
+from src.logger.config.config import dict_config
 
 
 def get_logger(name: str) -> Logger:

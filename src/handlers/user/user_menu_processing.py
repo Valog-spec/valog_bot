@@ -3,7 +3,7 @@ from typing import Any, Tuple, cast
 from aiogram.types import InputMediaPhoto
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.orm_query import (
+from src.database.orm_query import (
     delete_order,
     orm_add_to_cart,
     orm_create_order,
@@ -16,15 +16,15 @@ from database.orm_query import (
     orm_get_user_carts,
     orm_reduce_product_in_cart,
 )
-from kbds.inline.user.inline import (
+from src.kbds.inline.user.inline import (
     get_products_btns,
     get_user_cart,
     get_user_catalog_btns,
     get_user_main_btns,
     get_user_orders,
 )
-from logger.logger_helper import get_logger
-from utils.paginator import Paginator
+from src.logger.logger_helper import get_logger
+from src.utils.paginator import Paginator
 
 logger = get_logger("logger.user_menu_processing")
 
@@ -166,13 +166,8 @@ async def carts(
     Returns:
         Tuple[InputMediaPhoto, Any]: Медиа-объект с фото товара и клавиатура
     """
-    logger.info(
-        "Обработка корзины. User: %d, Операция: %s, Товар: %d, Страница: %d",
-        user_id,
-        menu_name,
-        product_id,
-        page,
-    )
+
+    logger.info("Обработка корзины")
     if menu_name == "delete":
         logger.debug(
             "Удаление товара %d из корзины пользователя %d", product_id, user_id
@@ -199,6 +194,8 @@ async def carts(
             product_id,
             user_id,
         )
+        # elif menu_name == "add_product_in_order":
+
         await orm_add_to_cart(session, user_id, product_id)
 
     carts = await orm_get_user_carts(session, user_id)
