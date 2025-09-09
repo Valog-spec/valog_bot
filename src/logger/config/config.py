@@ -27,11 +27,11 @@ class LevelFileHandler(logging.Handler):
         """
 
         if record.levelname == "WARNING":
-            self.filename = "src/logger/log_files/calc_warning.log"
+            self.filename = "/app/src/logger/log_files/calc_warning.log"
         elif record.exc_info:
-            self.filename = "src/logger/log_files/calc_exception.log"
+            self.filename = "/app/src/logger/log_files/calc_exception.log"
         elif record.levelname == "ERROR":
-            self.filename = "src/logger/log_files/calc_error.log"
+            self.filename = "/app/src/logger/log_files/calc_error.log"
 
         msg = self.format(record)
 
@@ -52,7 +52,7 @@ dict_config = {
             "()": LevelFileHandler,
             "level": "DEBUG",
             "formatter": "base",
-            "filename": "src/logger/log_files/logger.log",
+            "filename": "/app/src/logger/log_files/logger.log",
             "mode": "a",
         },
         "console": {
